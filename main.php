@@ -18,9 +18,24 @@
 		let page = 1;
 		let params = (new URL(document.location)).searchParams;
 		let site = params.get('search');
+		let phone = params.get('phone');
+		let viewMode = params.get('mode') || 'dates';
+		let sortOrder = params.get('sort') || 'asc';
+		let sitePage = parseInt(params.get('site_page') || '1', 10);
 		if (site) {
 			document.getElementById("site").value = site;
 		}
+		if (phone) {
+			document.getElementById("phone").value = phone;
+		}
+		if (!Number.isNaN(sitePage)) {
+			sitePage = Math.max(sitePage, 1);
+		} else {
+			sitePage = 1;
+		}
+		$('#sort-order').val(sortOrder);
+		updateModeButtons(viewMode);
+		toggleSortControl(viewMode);
 
 		$("#phone").mask("9 (999) 999-99-99");
 		$( function() {
@@ -42,36 +57,69 @@
 		$("#find-phone-button").click(
 			function(){
 				let phone = document.getElementById("phone").value;
-				phoneSearch(phone, page);
+				let state = getControlState();
+				loadData({
+					phone: phone,
+					page: 1,
+					mode: state.mode,
+					sort: state.sort,
+					sitePage: 1
+				});
 				return false; 
 			}
 		);
 		$("#find-site-button").click(
 			function(){
 				let search = document.getElementById("site").value;
-				mode(search, page);
+				let state = getControlState();
+				loadData({
+					search: search,
+					page: 1,
+					mode: state.mode,
+					sort: state.sort,
+					sitePage: 1
+				});
 				return false; 
 			}
 		);
-		$('body').on('click', ' .pagination li.active', function(){
-			let params = (new URL(document.location)).searchParams;
-			let site = params.get('search');
-			let phone = params.get('phone');
-			var page = $(this).attr('p');
-			if (phone != null) {
-				phoneSearch(phone, page);
-			} else if (site == null) {
-				site = '';
-				mode(site, page);
-			} else {
-				mode(site, page);
+		$('body').on('click', '.pagination li a', function(){
+			let params = getUrlState();
+			let targetPage = $(this).attr('p');
+			if (!targetPage) {
+				return;
 			}
+			loadData({
+				search: params.search,
+				phone: params.phone,
+				page: parseInt(targetPage, 10),
+				mode: params.mode,
+				sort: params.sort,
+				sitePage: params.sitePage
+			});
+		});
+		$('body').on('click', '.site-nav', function(){
+			let params = getUrlState();
+			let targetPage = $(this).data('page');
+			if (!targetPage) {
+				return;
+			}
+			loadData({
+				search: params.search,
+				phone: params.phone,
+				page: 1,
+				mode: 'history',
+				sort: params.sort,
+				sitePage: parseInt(targetPage, 10)
+			});
 		});
 		$('body').on('click', 'table .call', function(){
 			let value = $(this).attr('value');
 			let params = (new URL(document.location)).searchParams;
 			let site = params.get('search');
 			let page = params.get('page');
+			let mode = params.get('mode') || 'dates';
+			let sort = params.get('sort') || 'asc';
+			let sitePage = params.get('site_page') || '1';
 			if (site == null) {
 				site = '';
 			}
@@ -85,55 +133,151 @@
 				},
 			);
 
-			mode(site, page);
+			loadData({
+				search: site,
+				page: page,
+				mode: mode,
+				sort: sort,
+				sitePage: sitePage
+			});
+		});
+		$('body').on('contextmenu', 'table .comment', function(event){
+			event.preventDefault();
+			let row = $(this).closest('tr');
+			let phone = row.data('phone') || '';
+			let site = row.data('site') || '';
+			let comment = row.data('comment') || '';
+			let editable = Number(row.data('editable')) === 1;
+			let recordId = row.data('id');
+
+			$("#phone").val(phone);
+			$("#site").val(site);
+			$("#comment").val(comment).focus();
+
+			if (editable && recordId) {
+				$("#edit_id").val(recordId);
+				$("#btn").val("Сохранить");
+			} else {
+				$("#edit_id").val("");
+				$("#btn").val("Записать");
+				$('#result_form').html('<span style="color:#dc3545;">Комментарий можно редактировать только в течение 1 часа после добавления.</span>');
+				setTimeout(function() { $('#result_form').empty(); }, 4000);
+			}
+		});
+		$('.mode-button').on('click', function(){
+			let mode = $(this).data('mode');
+			let state = getControlState();
+			updateModeButtons(mode);
+			toggleSortControl(mode);
+			loadData({
+				search: $("#site").val(),
+				phone: $("#phone").val(),
+				page: 1,
+				mode: mode,
+				sort: state.sort,
+				sitePage: 1
+			});
+		});
+		$('#sort-order').on('change', function(){
+			let state = getControlState();
+			loadData({
+				search: $("#site").val(),
+				phone: $("#phone").val(),
+				page: 1,
+				mode: state.mode,
+				sort: state.sort,
+				sitePage: 1
+			});
 		});
 	});
 
-	function mode(search, page) {
+	function loadData(options) {
+		let query = new URLSearchParams();
+		let search = options.search || '';
+		let phone = options.phone || '';
+		let page = options.page || 1;
+		let mode = options.mode || 'dates';
+		let sort = options.sort || 'asc';
+		let sitePage = options.sitePage || 1;
+
 		if (search) {
-			window.history.pushState({}, document.title, "/main.php?search=" + search + "&page=" + page );
-		} else {
-			window.history.pushState({}, document.title, "/main.php?page=" + page );
+			query.set('search', search);
 		}
+		if (phone) {
+			query.set('phone', phone);
+		}
+		if (page > 1) {
+			query.set('page', page);
+		}
+		query.set('mode', mode);
+		query.set('sort', sort);
+		if (sitePage > 1) {
+			query.set('site_page', sitePage);
+		}
+
+		let url = "/main.php";
+		if (query.toString()) {
+			url += "?" + query.toString();
+		}
+
+		window.history.pushState({}, document.title, url);
 
 		$.get(
 			"show_base.php",
 			{
 				search: search,
-				page: page
-			},
-			onAjaxSuccess
-		);
-
-		function onAjaxSuccess(data) {
-			$('#data').html(data);
-			document.getElementById("comment").value = "";
-		}
-
-	};
-
-	function phoneSearch(phone, page) {
-		if (phone) {
-			window.history.pushState({}, document.title, "/main.php?phone=" + phone + "&page=" + page );
-		} else {
-			window.history.pushState({}, document.title, "/main.php?page=" + page );
-		}
-
-		$.get(
-			"show_base.php",
-			{
 				phone: phone,
-				page: page
+				page: page,
+				mode: mode,
+				sort: sort,
+				site_page: sitePage
 			},
 			onAjaxSuccess
 		);
 
 		function onAjaxSuccess(data) {
 			$('#data').html(data);
-			document.getElementById("comment").value = "";
+			resetEditState();
 		}
-
 	};
+
+	function resetEditState() {
+		document.getElementById("comment").value = "";
+		$("#edit_id").val("");
+		$("#btn").val("Записать");
+	}
+
+	function updateModeButtons(mode) {
+		$('.mode-button').removeClass('active');
+		$('.mode-button[data-mode="' + mode + '"]').addClass('active');
+	}
+
+	function toggleSortControl(mode) {
+		if (mode === 'dates') {
+			$('#sort-control').show();
+		} else {
+			$('#sort-control').hide();
+		}
+	}
+
+	function getControlState() {
+		return {
+			mode: $('.mode-button.active').data('mode') || 'dates',
+			sort: $('#sort-order').val() || 'asc'
+		};
+	}
+
+	function getUrlState() {
+		let params = (new URL(document.location)).searchParams;
+		return {
+			search: params.get('search') || '',
+			phone: params.get('phone') || '',
+			page: parseInt(params.get('page') || '1', 10),
+			mode: params.get('mode') || 'dates',
+			sort: params.get('sort') || 'asc',
+			sitePage: parseInt(params.get('site_page') || '1', 10)
+		};
+	}
  
 	function sendAjaxForm(ajax_form, url, site, page) {
     // Блокируем кнопку на время запроса
@@ -153,10 +297,19 @@
 
             if (result.success) {
                 // Если успех
-                mode(site, page); // Обновляем таблицу
+                let params = getUrlState();
+                loadData({
+					search: params.search,
+					phone: params.phone,
+					page: params.page,
+					mode: params.mode,
+					sort: params.sort,
+					sitePage: params.sitePage
+				}); // Обновляем таблицу
                 
                 // Очищаем поля формы
                 $('#sendForm')[0].reset();
+				resetEditState();
                 
                 // Показываем сообщение об успехе
                 $('#result_form').html('<span style="color:green;">' + result.message + '</span>');
@@ -176,6 +329,12 @@
 	</script>
 
 <div class="container">
+	<div class="top-actions">
+		<a href="/main.php" class="home-button">На главную</a>
+		<form class="exit" method="POST" action="logout.php">
+			<input name="submit" type="submit" value="Выйти">
+		</form>
+	</div>
   	<div class="forms">
 		<form method="post" id="sendForm" action="">
 			<!-- Верхний ряд: Поля ввода -->
@@ -210,18 +369,24 @@
 					<textarea rows="2" cols="100" name="comment" id="comment" placeholder="Введите комментарий..."></textarea>
 				</div>
 			</div>
+			<input type="hidden" name="edit_id" id="edit_id">
 		</form>
-
-		<div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
-			<!-- Кнопка На главную -->
-			<a href="/main.php" class="home-button" style="text-decoration: none; color: #333; border: 1px solid #ccc; padding: 5px 10px; border-radius: 4px; background: #f9f9f9;">На главную</a>
-
-			<form class="exit" method="POST" action="logout.php" style="margin:0;">
-				<input name="submit" type="submit" value="Выйти">
-			</form>
-		</div>
 		
 		<div id="result_form"></div>
+	</div>
+
+	<div class="view-controls">
+		<div class="mode-switch">
+			<button type="button" class="mode-button" data-mode="dates">По датам</button>
+			<button type="button" class="mode-button" data-mode="history">История комментариев</button>
+		</div>
+		<div class="sort-control" id="sort-control">
+			<label for="sort-order">Сортировка:</label>
+			<select id="sort-order">
+				<option value="asc">Сначала старые</option>
+				<option value="desc">Сначала новые</option>
+			</select>
+		</div>
 	</div>
 
 	<div id="data">
