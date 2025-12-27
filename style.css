@@ -38,6 +38,13 @@ h1 {
     flex-direction: column; /* Чтобы блоки шли друг под другом */
 }
 
+.top-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
 .row {
     display: flex;
     flex-direction: row;
@@ -148,7 +155,7 @@ button:hover {
 
 /* Форма выхода */
 .exit {
-    float: right;
+    margin: 0;
 }
 
 .exit input[type=submit] {
@@ -178,6 +185,49 @@ button:hover {
    ========================================= */
 #data {
     margin-top: 20px;
+}
+
+.view-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.mode-switch {
+    display: flex;
+    gap: 8px;
+}
+
+.mode-button {
+    background-color: #fff;
+    border: 1px solid #ccc;
+    color: #333;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.mode-button.active {
+    background-color: #4CAF50;
+    border-color: #4CAF50;
+    color: #fff;
+}
+
+.sort-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sort-control select {
+    padding: 6px 10px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
 }
 
 table { 
@@ -232,6 +282,50 @@ table .phone { width: 150px; text-align: center; }
 table .site { width: 200px; }
 table .call { width: 140px; text-align: center; }
 table .date { color: #4CAF50; }
+
+.comment-userid {
+    font-size: 12px;
+    color: #6c757d;
+    margin-bottom: 4px;
+}
+
+.comment-text {
+    white-space: pre-wrap;
+}
+
+.site-navigation {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    padding: 8px 10px;
+    border: 1px solid #d0d7de;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+}
+
+.site-nav {
+    color: #4CAF50;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.site-nav.disabled {
+    color: #bbb;
+    cursor: default;
+}
+
+.site-current {
+    font-weight: 600;
+    color: #333;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 20px;
+    color: #666;
+}
 
 /* Цвета статусов звонков */
 .todayCall { color: #28a745; font-weight: bold; }

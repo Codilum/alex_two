@@ -23,8 +23,9 @@ try {
     $dateRaw = trim($_POST['date'] ?? ''); 
     $comment = trim($_POST['comment'] ?? '');
     $status = $_POST['status'] ?? '';
+    $editId = (int)($_POST['edit_id'] ?? 0);
 
-    if (empty($phone) && empty($site)) {
+    if ($editId === 0 && empty($phone) && empty($site)) {
         throw new Exception("Заполните Телефон или Сайт");
     }
 
@@ -53,34 +54,79 @@ try {
     }
 
     // Формируем комментарий
-    $fullComment = $comment;
-    if (!empty($status)) {
-        $fullComment .= " [Статус: $status]";
-    }
-
     $userid = isset($_COOKIE['userid']) ? (int)$_COOKIE['userid'] : 0;
 
-    // === SQL ЗАПРОС ===
-    // Убрали fio и calldate. Оставили только то, что точно есть.
-    $sql = "INSERT INTO calls (phonenumber, sitedomen, nextcalldate, commenttext, userid) 
-            VALUES ($1, $2, $3, $4, $5)";
+    if ($editId > 0) {
+        $sql_fetch = "SELECT commenttext FROM calls WHERE id = $1 AND userid = $2";
+        $result_fetch = pg_query_params($conn, $sql_fetch, [$editId, $userid]);
+        if (!$result_fetch || pg_num_rows($result_fetch) === 0) {
+            throw new Exception("Комментарий не найден.");
+        }
 
-    $params = [
-        $phone,
-        $site,
-        $nextCallDate, 
-        $fullComment,
-        $userid
-    ];
+        $existingComment = pg_fetch_result($result_fetch, 0, 'commenttext');
+        $timestamp = null;
+        if (preg_match('/^(\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}:\d{2})/', $existingComment, $matches)) {
+            $timestamp = $matches[1];
+        }
 
-    // Выполняем запрос
-    $result = @pg_query_params($conn, $sql, $params);
+        if (!$timestamp) {
+            throw new Exception("Редактирование возможно только для новых комментариев.");
+        }
 
-    if ($result) {
-        $response['success'] = true;
-        $response['message'] = 'Запись успешно добавлена';
+        $commentTime = DateTime::createFromFormat('d.m.Y H:i:s', $timestamp);
+        if (!$commentTime) {
+            throw new Exception("Не удалось определить время комментария.");
+        }
+
+        $now = new DateTime();
+        $diffSeconds = $now->getTimestamp() - $commentTime->getTimestamp();
+        if ($diffSeconds < 0 || $diffSeconds > 3600) {
+            throw new Exception("Комментарий можно редактировать только в течение 1 часа после добавления.");
+        }
+
+        $fullComment = $timestamp . " " . $comment;
+        if (!empty($status)) {
+            $fullComment .= " [Статус: $status]";
+        }
+
+        $sql_update = "UPDATE calls SET commenttext = $1 WHERE id = $2 AND userid = $3";
+        $result_update = pg_query_params($conn, $sql_update, [$fullComment, $editId, $userid]);
+
+        if ($result_update) {
+            $response['success'] = true;
+            $response['message'] = 'Комментарий обновлен';
+        } else {
+            throw new Exception("Ошибка SQL: " . pg_last_error($conn));
+        }
     } else {
-        throw new Exception("Ошибка SQL: " . pg_last_error($conn));
+        $commentTimestamp = date('d.m.Y H:i:s');
+        $fullComment = $commentTimestamp . " " . $comment;
+        if (!empty($status)) {
+            $fullComment .= " [Статус: $status]";
+        }
+
+        // === SQL ЗАПРОС ===
+        // Убрали fio и calldate. Оставили только то, что точно есть.
+        $sql = "INSERT INTO calls (phonenumber, sitedomen, nextcalldate, commenttext, userid) 
+                VALUES ($1, $2, $3, $4, $5)";
+
+        $params = [
+            $phone,
+            $site,
+            $nextCallDate, 
+            $fullComment,
+            $userid
+        ];
+
+        // Выполняем запрос
+        $result = @pg_query_params($conn, $sql, $params);
+
+        if ($result) {
+            $response['success'] = true;
+            $response['message'] = 'Запись успешно добавлена';
+        } else {
+            throw new Exception("Ошибка SQL: " . pg_last_error($conn));
+        }
     }
 
     pg_close($conn);
