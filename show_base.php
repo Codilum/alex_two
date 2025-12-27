@@ -227,16 +227,16 @@ if ($sql && ($result = pg_query($conn, $sql))) {
 
     while ($array = pg_fetch_array($result)) {
         $commentText = $array['commenttext'] ?? '';
-        $commentClean = $commentText;
+        $commentBody = $commentText;
         $commentTimestamp = extractCommentTimestamp($commentText);
         if ($commentTimestamp) {
-            $commentClean = trim(preg_replace('/^\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}:\d{2}\s*/', '', $commentText));
+            $commentBody = trim(preg_replace('/^\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}:\d{2}\s*/', '', $commentText));
         }
         $editable = $commentTimestamp ? isCommentEditable($commentTimestamp) : false;
 
         if ($array['nextcalldate'] != NULL) {
             $callDateValue = date("Y-m-d", strtotime($array['nextcalldate']));
-            $callDate = date("H:i:s<br>d.m.Y", strtotime($array['nextcalldate']));
+            $callDate = date("d.m.Y", strtotime($array['nextcalldate']));
         } else {
             $callDateValue = "";
             $callDate = "";
@@ -245,11 +245,18 @@ if ($sql && ($result = pg_query($conn, $sql))) {
         $callClass = checkCallDate($callDateValue, $today);
         $tel_link = $array['phonenumber'];
 
-        echo '<tr value="' . $array['id'] . '" data-id="' . $array['id'] . '" data-phone="' . htmlspecialchars($array['phonenumber'], ENT_QUOTES) . '" data-site="' . htmlspecialchars($array['sitedomen'], ENT_QUOTES) . '" data-comment="' . htmlspecialchars($commentClean, ENT_QUOTES) . '" data-editable="' . ($editable ? 1 : 0) . '">';
+        echo '<tr value="' . $array['id'] . '" data-id="' . $array['id'] . '" data-phone="' . htmlspecialchars($array['phonenumber'], ENT_QUOTES) . '" data-site="' . htmlspecialchars($array['sitedomen'], ENT_QUOTES) . '" data-comment="' . htmlspecialchars($commentBody, ENT_QUOTES) . '" data-editable="' . ($editable ? 1 : 0) . '">';
         echo '<td class="phone"><a href="tel:' .str_replace([' ', '(', ')','-'], ["","","",""], $tel_link). '">'.$array['phonenumber'].'</td>';
         echo '<td class="site"><a href="https://' . $array['sitedomen'] . '" target="_blank">' . $array['sitedomen'] . '</a></td>';
         // Добавил htmlspecialchars для безопасности
-        echo '<td class="comment"><div class="comment-userid">ID: ' . htmlspecialchars($array['userid']) . '</div><div class="comment-text">' . nl2br(htmlspecialchars($commentText)) . '</div></td>';
+        $commentDisplay = '';
+        if ($commentTimestamp) {
+            $commentDisplay .= '<strong>' . htmlspecialchars($commentTimestamp) . '</strong><br>';
+        }
+        if ($commentBody !== '') {
+            $commentDisplay .= nl2br(htmlspecialchars($commentBody));
+        }
+        echo '<td class="comment"><div class="comment-userid">ID: ' . htmlspecialchars($array['userid']) . '</div><div class="comment-text">' . $commentDisplay . '</div></td>';
         echo '<td class="call ' . $callClass . '" value="' . $array['id'] . '">' . $callDate . '</td>';
         echo '</tr>';
     }

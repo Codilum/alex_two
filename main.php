@@ -141,28 +141,57 @@
 				sitePage: sitePage
 			});
 		});
-		$('body').on('contextmenu', 'table .comment', function(event){
-			event.preventDefault();
+		$('body').on('click', 'table .comment', function(){
 			let row = $(this).closest('tr');
-			let phone = row.data('phone') || '';
-			let site = row.data('site') || '';
 			let comment = row.data('comment') || '';
 			let editable = Number(row.data('editable')) === 1;
 			let recordId = row.data('id');
-
-			$("#phone").val(phone);
-			$("#site").val(site);
-			$("#comment").val(comment).focus();
-
-			if (editable && recordId) {
-				$("#edit_id").val(recordId);
-				$("#btn").val("Сохранить");
-			} else {
-				$("#edit_id").val("");
-				$("#btn").val("Записать");
-				$('#result_form').html('<span style="color:#dc3545;">Комментарий можно редактировать только в течение 1 часа после добавления.</span>');
-				setTimeout(function() { $('#result_form').empty(); }, 4000);
-			}
+			openEditDialog(comment, editable, recordId);
+		});
+		$('#import-button').on('click', function() {
+			$('#import-message').empty();
+			$('#importForm')[0].reset();
+			$('#import-dialog').dialog('open');
+		});
+		$('#edit-dialog').dialog({
+			autoOpen: false,
+			modal: true,
+			width: 520,
+			buttons: [
+				{
+					text: 'Сохранить',
+					id: 'edit-save-button',
+					click: function() {
+						sendEditForm();
+					}
+				},
+				{
+					text: 'Закрыть',
+					click: function() {
+						$(this).dialog('close');
+					}
+				}
+			]
+		});
+		$('#import-dialog').dialog({
+			autoOpen: false,
+			modal: true,
+			width: 520,
+			buttons: [
+				{
+					text: 'Импортировать',
+					id: 'import-save-button',
+					click: function() {
+						sendImportForm();
+					}
+				},
+				{
+					text: 'Закрыть',
+					click: function() {
+						$(this).dialog('close');
+					}
+				}
+			]
 		});
 		$('.mode-button').on('click', function(){
 			let mode = $(this).data('mode');
@@ -326,11 +355,109 @@
         }
     });
 }
+
+	function openEditDialog(comment, editable, recordId) {
+		$('#edit-comment').val(comment);
+		$('#edit_id_dialog').val(recordId || '');
+		$('#edit-message').empty();
+
+		if (!editable) {
+			$('#edit-message').html('<span style="color:#dc3545;">Комментарий можно редактировать только в течение 1 часа после добавления.</span>');
+			$('#edit-comment').prop('disabled', true);
+			$('#edit-save-button').prop('disabled', true);
+		} else {
+			$('#edit-comment').prop('disabled', false);
+			$('#edit-save-button').prop('disabled', false);
+		}
+
+		$('#edit-dialog').dialog('open');
+	}
+
+	function sendEditForm() {
+		if (!$('#edit_id_dialog').val()) {
+			$('#edit-message').html('<span style="color:#dc3545;">Не удалось определить запись для редактирования.</span>');
+			return;
+		}
+
+		$('#edit-save-button').prop('disabled', true);
+		$.ajax({
+			url: 'send_query.php',
+			type: 'POST',
+			dataType: 'json',
+			data: $('#editForm').serialize(),
+			success: function(response) {
+				if (response.success) {
+					let params = getUrlState();
+					loadData({
+						search: params.search,
+						phone: params.phone,
+						page: params.page,
+						mode: params.mode,
+						sort: params.sort,
+						sitePage: params.sitePage
+					});
+					$('#edit-dialog').dialog('close');
+				} else {
+					$('#edit-message').html('<span style="color:#dc3545;">' + response.message + '</span>');
+				}
+			},
+			error: function() {
+				$('#edit-message').html('<span style="color:#dc3545;">Не удалось сохранить комментарий.</span>');
+			},
+			complete: function() {
+				$('#edit-save-button').prop('disabled', false);
+			}
+		});
+	}
+
+	function sendImportForm() {
+		let fileInput = $('#import_file')[0];
+		if (!fileInput || !fileInput.files || !fileInput.files.length) {
+			$('#import-message').html('<span style="color:#dc3545;">Выберите файл для импорта.</span>');
+			return;
+		}
+
+		$('#import-save-button').prop('disabled', true);
+		let formData = new FormData();
+		formData.append('import_file', fileInput.files[0]);
+
+		$.ajax({
+			url: 'import.php',
+			type: 'POST',
+			dataType: 'json',
+			data: formData,
+			contentType: false,
+			processData: false,
+			success: function(response) {
+				if (response.success) {
+					let params = getUrlState();
+					loadData({
+						search: params.search,
+						phone: params.phone,
+						page: params.page,
+						mode: params.mode,
+						sort: params.sort,
+						sitePage: params.sitePage
+					});
+					$('#import-message').html('<span style="color:green;">' + response.message + '</span>');
+				} else {
+					$('#import-message').html('<span style="color:#dc3545;">' + response.message + '</span>');
+				}
+			},
+			error: function() {
+				$('#import-message').html('<span style="color:#dc3545;">Не удалось выполнить импорт.</span>');
+			},
+			complete: function() {
+				$('#import-save-button').prop('disabled', false);
+			}
+		});
+	}
 	</script>
 
 <div class="container">
 	<div class="top-actions">
 		<a href="/main.php" class="home-button">На главную</a>
+		<button type="button" class="import-button" id="import-button">Импорт</button>
 		<form class="exit" method="POST" action="logout.php">
 			<input name="submit" type="submit" value="Выйти">
 		</form>
@@ -373,6 +500,29 @@
 		</form>
 		
 		<div id="result_form"></div>
+	</div>
+
+	<div id="edit-dialog" title="Редактирование комментария" style="display:none;">
+		<div class="dialog-message" id="edit-message"></div>
+		<form id="editForm">
+			<textarea rows="4" cols="100" name="comment" id="edit-comment" placeholder="Введите новый текст комментария..."></textarea>
+			<input type="hidden" name="edit_id" id="edit_id_dialog">
+		</form>
+	</div>
+
+	<div id="import-dialog" title="Импорт данных" style="display:none;">
+		<div class="dialog-message">Формат: телефон; сайт; дата (дд.мм.гггг); комментарий.</div>
+		<form id="importForm" enctype="multipart/form-data">
+			<input type="file" name="import_file" id="import_file" accept=".txt,.csv">
+		</form>
+		<div class="import-examples">
+			<div>Примеры файлов для импорта:</div>
+			<ul>
+				<li><a href="/import_example.csv" download>import_example.csv</a></li>
+				<li><a href="/import_example.txt" download>import_example.txt</a></li>
+			</ul>
+		</div>
+		<div class="dialog-message" id="import-message"></div>
 	</div>
 
 	<div class="view-controls">
