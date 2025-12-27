@@ -43,6 +43,7 @@ h1 {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 15px;
+    gap: 10px;
 }
 
 .row {
@@ -151,6 +152,14 @@ button:hover {
     background-color: #e6f7ff;
     border-color: #4CAF50;
     color: #4CAF50;
+}
+
+.import-button {
+    background-color: #007bff;
+}
+
+.import-button:hover {
+    background-color: #0069d9;
 }
 
 /* Форма выхода */
@@ -291,6 +300,21 @@ table .date { color: #4CAF50; }
 
 .comment-text {
     white-space: pre-wrap;
+}
+
+.dialog-message {
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+
+.import-examples {
+    margin-top: 10px;
+    font-size: 14px;
+}
+
+.import-examples ul {
+    padding-left: 18px;
+    margin-top: 6px;
 }
 
 .site-navigation {
