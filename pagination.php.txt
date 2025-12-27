@@ -1,0 +1,88 @@
+<?php
+/**
+ * Функция для генерации пагинации
+ * $page - текущая страница
+ * $total_pages - всего страниц
+ * $params - массив параметров URL (поиск, телефон и т.д.), чтобы они не слетали при переходе
+ */
+function renderPagination($page, $total_pages, $params = []) {
+    // Если страница всего одна, пагинация не нужна
+    if ($total_pages <= 1) {
+        return '';
+    }
+
+    // Начало HTML
+    $html = '<div class="pagination"><ul>';
+
+    // --- Кнопка "Назад" (<<) ---
+    if ($page > 1) {
+        $params['page'] = $page - 1;
+        $url = '?' . http_build_query($params);
+        $html .= '<li><a href="' . $url . '" p="' . ($page - 1) . '">«</a></li>';
+    } else {
+        $html .= '<li class="disabled"><a>«</a></li>';
+    }
+
+    // --- Логика с точками (...) ---
+    // Всегда показываем первую страницу, последнюю и по 2 страницы вокруг текущей
+    $adjacents = 2; 
+
+    // Первая страница
+    if ($page > ($adjacents + 2)) {
+        $params['page'] = 1;
+        $url = '?' . http_build_query($params);
+        $html .= '<li><a href="' . $url . '" p="1">1</a></li>';
+        $html .= '<li class="disabled"><a>...</a></li>'; // Точки
+    } else {
+        // Если мы близко к началу, выводим просто цифры без точек
+        for ($i = 1; $i < max(1, $page - $adjacents); $i++) {
+            $params['page'] = $i;
+            $url = '?' . http_build_query($params);
+            $html .= '<li><a href="' . $url . '" p="' . $i . '">' . $i . '</a></li>';
+        }
+    }
+
+    // Центральная часть (вокруг текущей)
+    $pmin = ($page > $adjacents) ? ($page - $adjacents) : 1;
+    $pmax = ($page < ($total_pages - $adjacents)) ? ($page + $adjacents) : $total_pages;
+
+    for ($i = $pmin; $i <= $pmax; $i++) {
+        $params['page'] = $i;
+        $url = '?' . http_build_query($params);
+        
+        if ($i == $page) {
+            $html .= '<li class="active"><a>' . $i . '</a></li>';
+        } else {
+            $html .= '<li><a href="' . $url . '" p="' . $i . '">' . $i . '</a></li>';
+        }
+    }
+
+    // Последняя страница
+    if ($page < ($total_pages - $adjacents - 1)) {
+        $html .= '<li class="disabled"><a>...</a></li>'; // Точки
+        $params['page'] = $total_pages;
+        $url = '?' . http_build_query($params);
+        $html .= '<li><a href="' . $url . '" p="' . $total_pages . '">' . $total_pages . '</a></li>';
+    } elseif ($pmax < $total_pages) {
+        // Добиваем хвост, если точки не нужны, но мы не дошли до конца
+        for ($i = $pmax + 1; $i <= $total_pages; $i++) {
+            $params['page'] = $i;
+            $url = '?' . http_build_query($params);
+            $html .= '<li><a href="' . $url . '" p="' . $i . '">' . $i . '</a></li>';
+        }
+    }
+
+    // --- Кнопка "Вперед" (>>) ---
+    if ($page < $total_pages) {
+        $params['page'] = $page + 1;
+        $url = '?' . http_build_query($params);
+        $html .= '<li><a href="' . $url . '" p="' . ($page + 1) . '">»</a></li>';
+    } else {
+        $html .= '<li class="disabled"><a>»</a></li>';
+    }
+
+    $html .= '</ul></div>';
+
+    return $html;
+}
+?>

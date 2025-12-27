@@ -1,0 +1,195 @@
+* {
+    margin:0px; 
+    padding:0px
+}
+
+body {
+    margin: 0 auto;
+    max-width: 1200px;
+    min-width: 900px;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; 
+    color: #6c757d;
+}
+
+h1 {
+    font-size: 24px; font-style: normal; 
+    font-variant: normal; 
+    font-weight: 700; 
+    line-height: 26.4px;
+    color: #212529;
+}
+
+.container {
+    margin: 20px 5%;
+}
+
+.date {
+    color: #4CAF50;
+}
+
+.forms {
+    display: flex;
+    justify-content: space-between;
+}
+
+.row {
+    display: flex;
+    flex-direction: row;
+    margin-bottom: 20px;
+}
+
+.find-row {
+    display: flex;
+}
+
+.find-row .find-button {
+    background-image: url('/images/find-icon.svg');
+    background-color: #fff;
+    background-size: contain;
+    background-repeat: no-repeat;
+    width: 30px;
+    height: 27px;
+    padding: 0;
+    margin-left: 10px;
+}
+
+.phone, .call, .site {
+    text-align: center;
+}
+
+.todayCall {
+    color: green;
+}
+
+.pastCall {
+    color: red;
+}
+
+.input-column {
+    display: flex;
+    flex-direction: column;
+    padding-right: 15px;
+}
+
+.input-column input[type="text"],
+.input-column input[type="tel"],
+textarea {
+    padding: 5px;
+    margin: 0 0 5px;
+    border: 1px solid #6c757d;
+    border-radius: 4px;
+    color: #000;
+}
+
+input[type=submit] {
+    padding: 6px 32px;
+    border: none;
+    background-color: #4CAF50;
+    font-weight: bold;
+    text-decoration: none;
+    color: #fff;
+    cursor: pointer;
+}
+
+.input-column p{
+    font-size: 12px;
+    color: #212529;
+}
+
+.save-button {
+    margin-top: 15px;
+}
+
+table { 
+    width: 100%;
+    padding: 20px 0;
+    border-spacing: 0;
+}
+
+thead tr{
+    height: 30px;
+    padding: 5px 0;
+    color: #212529;
+    background: #fff !important;
+    text-align: center;
+}
+
+tr:nth-child(2n+1) {
+    background: #f0f0f0;
+} 
+
+tr:nth-child(2n) {
+    background: #fff;
+} 
+
+table td {
+    padding: 5px 3px;
+}
+
+table .phone {
+    width: 160px;
+}
+
+table .call {
+    width: 150px;
+    cursor: pointer;
+}
+
+table .site {
+    width: 200px;
+}
+
+.pagination {
+    text-align: center;
+}
+
+.pagination li {
+    display: inline;
+    padding: 5px;
+    color: #000;
+    cursor: pointer;
+}
+
+.pagination .inactive {
+    color: #6c757d;
+}
+
+.pagination a:hover {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.exit {
+    width: 100%;
+    text-align: right;
+}
+
+.exit input[type=submit] {
+    color: black;
+    text-decoration: underline;
+    background: #fff; 
+}
+
+.login {
+    margin: 0 auto;
+    width: 180px;
+    text-align: center;
+}
+
+.login input[type=submit]{
+    margin: 10px;
+}
+.home-button {
+    display: inline-block;
+    padding: 6px 12px;
+    background-color: #5cb85c;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-left: 10px;
+}
+.home-button:hover {
+    background-color: #4cae4c;
+}
