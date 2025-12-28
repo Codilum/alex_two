@@ -13,15 +13,81 @@ function openDbConnection()
     return $conn;
 }
 
+function getUsersTableColumns($conn)
+{
+    static $columns = null;
+
+    if ($columns !== null) {
+        return $columns;
+    }
+
+    $columns = [];
+    $result = pg_query_params(
+        $conn,
+        "SELECT column_name FROM information_schema.columns WHERE table_name = $1",
+        ['users']
+    );
+
+    if ($result) {
+        while ($row = pg_fetch_assoc($result)) {
+            $columns[$row['column_name']] = true;
+        }
+    }
+
+    return $columns;
+}
+
+function usersHasColumn($conn, $column)
+{
+    $columns = getUsersTableColumns($conn);
+
+    return isset($columns[$column]);
+}
+
+function isPasswordUnique($conn, $passwordHash, $excludeUserId = null)
+{
+    $params = [$passwordHash];
+    $query = 'SELECT userid FROM users WHERE userpassword = $1';
+
+    if ($excludeUserId !== null) {
+        $params[] = (int)$excludeUserId;
+        $query .= ' AND userid <> $2';
+    }
+
+    $query .= ' LIMIT 1';
+
+    $result = pg_query_params($conn, $query, $params);
+
+    return !$result || pg_num_rows($result) === 0;
+}
+
 function ensureDefaultUsers($conn)
 {
     $result = pg_query_params($conn, "SELECT userid FROM users WHERE userlogin = $1 LIMIT 1", ['test']);
     if ($result && pg_num_rows($result) === 0) {
         $passwordHash = md5(md5('123'));
+        $columns = ['userlogin', 'userpassword', 'userhash'];
+        $params = ['test', $passwordHash, ''];
+
+        if (usersHasColumn($conn, 'useroffice')) {
+            $columns[] = 'useroffice';
+            $params[] = '';
+        }
+
+        if (usersHasColumn($conn, 'userrole')) {
+            $columns[] = 'userrole';
+            $params[] = 'user';
+        }
+
+        $placeholders = [];
+        for ($i = 1; $i <= count($params); $i++) {
+            $placeholders[] = '$' . $i;
+        }
+
         pg_query_params(
             $conn,
-            'INSERT INTO users (userlogin, userpassword, userhash, useroffice, userrole) VALUES ($1, $2, $3, $4, $5)',
-            ['test', $passwordHash, '', '', 'user']
+            'INSERT INTO users (' . implode(', ', $columns) . ') VALUES (' . implode(', ', $placeholders) . ')',
+            $params
         );
     }
 }
@@ -62,9 +128,17 @@ function getAuthenticatedUser($conn)
         return null;
     }
 
+    $fields = ['userid', 'userlogin', 'userhash'];
+    if (usersHasColumn($conn, 'userrole')) {
+        $fields[] = 'userrole';
+    }
+    if (usersHasColumn($conn, 'useroffice')) {
+        $fields[] = 'useroffice';
+    }
+
     $result = pg_query_params(
         $conn,
-        "SELECT userid, userlogin, userhash, userrole, useroffice FROM users WHERE userid = $1 LIMIT 1",
+        "SELECT " . implode(', ', $fields) . " FROM users WHERE userid = $1 LIMIT 1",
         [$userid]
     );
 

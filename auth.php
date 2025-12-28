@@ -26,39 +26,36 @@ ensureDefaultUsers($conn);
 
 if(isset($_POST['submit']))
 {
-    $login = trim($_POST['login'] ?? '');
     $password = trim($_POST['password'] ?? '');
 
-    if ($login === '' || $password === '') {
+    if ($password === '') {
         header("Location: index.php?error=empty");
         exit();
     }
 
+    $passwordHash = md5(md5($password));
     $result = pg_query_params(
         $conn,
-        "SELECT userid, userpassword FROM users WHERE userlogin = $1 LIMIT 1",
-        [$login]
+        "SELECT userid FROM users WHERE userpassword = $1 LIMIT 2",
+        [$passwordHash]
     );
 
-    if ($result && ($data = pg_fetch_array($result)))
-    {  
-        // Сравниваем пароли
-        if($data['userpassword'] === md5(md5($password)))
-        {
-            // Генерируем случайное число и шифруем его
-            $hash = md5(generateCode(10));
+    if ($result && pg_num_rows($result) === 1) {
+        $data = pg_fetch_array($result);
 
-            // Записываем в БД новый хеш авторизации и IP
-            pg_query_params($conn, "UPDATE users SET userhash=$1 WHERE userid=$2", [$hash, $data['userid']]);
+        // Генерируем случайное число и шифруем его
+        $hash = md5(generateCode(10));
 
-            // Ставим куки
-            setcookie("userid", $data['userid'], time()+60*60*24*30, "/");
-            setcookie("hash", $hash, time()+60*60*24*30, "/", null, null, true); // httponly !!!
+        // Записываем в БД новый хеш авторизации и IP
+        pg_query_params($conn, "UPDATE users SET userhash=$1 WHERE userid=$2", [$hash, $data['userid']]);
 
-            // Переадресовываем браузер на страницу проверки нашего скрипта
-            header("Location: check.php"); 
-            exit();
-        }
+        // Ставим куки
+        setcookie("userid", $data['userid'], time()+60*60*24*30, "/");
+        setcookie("hash", $hash, time()+60*60*24*30, "/", null, null, true); // httponly !!!
+
+        // Переадресовываем браузер на страницу проверки нашего скрипта
+        header("Location: check.php");
+        exit();
     }
 
     header("Location: index.php?error=invalid");

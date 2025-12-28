@@ -4,6 +4,8 @@ require_once 'auth_utils.php';
 $auth = requireAuth('page');
 $currentUser = $auth['user'];
 $conn = $auth['conn'];
+$hasOffice = usersHasColumn($conn, 'useroffice');
+$hasRole = usersHasColumn($conn, 'userrole');
 
 if (!isAdmin($currentUser)) {
     http_response_code(403);
@@ -21,19 +23,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $role = trim($_POST['role'] ?? 'user');
     $password = trim($_POST['password'] ?? '');
 
-    if (!in_array($role, ['admin', 'user'], true)) {
+    if (!$hasRole) {
+        $role = 'user';
+    } elseif (!in_array($role, ['admin', 'user'], true)) {
         $role = 'user';
     }
 
     if ($action === 'create') {
         if ($login === '' || $password === '') {
             $error = 'Заполните имя пользователя и пароль.';
+        } elseif (!isPasswordUnique($conn, md5(md5($password)))) {
+            $error = 'Этот пароль уже используется другим пользователем.';
         } else {
             $passwordHash = md5(md5($password));
+            $columns = ['userlogin', 'userpassword', 'userhash'];
+            $params = [$login, $passwordHash, ''];
+
+            if ($hasOffice) {
+                $columns[] = 'useroffice';
+                $params[] = $office;
+            }
+
+            if ($hasRole) {
+                $columns[] = 'userrole';
+                $params[] = $role;
+            }
+
+            $placeholders = [];
+            for ($i = 1; $i <= count($params); $i++) {
+                $placeholders[] = '$' . $i;
+            }
+
             $result = pg_query_params(
                 $conn,
-                'INSERT INTO users (userlogin, userpassword, userhash, useroffice, userrole) VALUES ($1, $2, $3, $4, $5)',
-                [$login, $passwordHash, '', $office, $role]
+                'INSERT INTO users (' . implode(', ', $columns) . ') VALUES (' . implode(', ', $placeholders) . ')',
+                $params
             );
 
             if ($result) {
@@ -49,18 +73,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($userId <= 0 || $login === '') {
             $error = 'Заполните имя пользователя.';
         } else {
-            if ($password !== '') {
+            if ($password !== '' && !isPasswordUnique($conn, md5(md5($password)), $userId)) {
+                $error = 'Этот пароль уже используется другим пользователем.';
+            } elseif ($password !== '') {
                 $passwordHash = md5(md5($password));
+                $updates = ['userlogin = $1', 'userpassword = $2'];
+                $params = [$login, $passwordHash];
+                if ($hasOffice) {
+                    $updates[] = 'useroffice = $' . (count($params) + 1);
+                    $params[] = $office;
+                }
+                if ($hasRole) {
+                    $updates[] = 'userrole = $' . (count($params) + 1);
+                    $params[] = $role;
+                }
+                $params[] = $userId;
                 $result = pg_query_params(
                     $conn,
-                    'UPDATE users SET userlogin = $1, userpassword = $2, useroffice = $3, userrole = $4 WHERE userid = $5',
-                    [$login, $passwordHash, $office, $role, $userId]
+                    'UPDATE users SET ' . implode(', ', $updates) . ' WHERE userid = $' . count($params),
+                    $params
                 );
             } else {
+                $updates = ['userlogin = $1'];
+                $params = [$login];
+                if ($hasOffice) {
+                    $updates[] = 'useroffice = $' . (count($params) + 1);
+                    $params[] = $office;
+                }
+                if ($hasRole) {
+                    $updates[] = 'userrole = $' . (count($params) + 1);
+                    $params[] = $role;
+                }
+                $params[] = $userId;
                 $result = pg_query_params(
                     $conn,
-                    'UPDATE users SET userlogin = $1, useroffice = $2, userrole = $3 WHERE userid = $4',
-                    [$login, $office, $role, $userId]
+                    'UPDATE users SET ' . implode(', ', $updates) . ' WHERE userid = $' . count($params),
+                    $params
                 );
             }
 
@@ -77,9 +125,16 @@ $editUser = null;
 if (isset($_GET['user_id'])) {
     $editId = (int)$_GET['user_id'];
     if ($editId > 0) {
+        $fields = ['userid', 'userlogin'];
+        if ($hasOffice) {
+            $fields[] = 'useroffice';
+        }
+        if ($hasRole) {
+            $fields[] = 'userrole';
+        }
         $result = pg_query_params(
             $conn,
-            'SELECT userid, userlogin, useroffice, userrole FROM users WHERE userid = $1',
+            'SELECT ' . implode(', ', $fields) . ' FROM users WHERE userid = $1',
             [$editId]
         );
         if ($result && pg_num_rows($result) > 0) {
@@ -88,7 +143,14 @@ if (isset($_GET['user_id'])) {
     }
 }
 
-$users = pg_query($conn, 'SELECT userid, userlogin, useroffice, userrole FROM users ORDER BY userlogin');
+$listFields = ['userid', 'userlogin'];
+if ($hasOffice) {
+    $listFields[] = 'useroffice';
+}
+if ($hasRole) {
+    $listFields[] = 'userrole';
+}
+$users = pg_query($conn, 'SELECT ' . implode(', ', $listFields) . ' FROM users ORDER BY userlogin');
 $assignments = pg_query(
     $conn,
     "SELECT ca.id,
@@ -143,11 +205,15 @@ $assignments = pg_query(
                         <input type="hidden" name="action" value="create">
                         <input name="login" type="text" placeholder="Имя пользователя" required>
                         <input name="password" type="password" placeholder="Пароль" required>
-                        <input name="office" type="text" placeholder="Офис">
-                        <select name="role">
-                            <option value="user">Обычный пользователь</option>
-                            <option value="admin">Администратор</option>
-                        </select>
+                        <?php if ($hasOffice) { ?>
+                            <input name="office" type="text" placeholder="Офис">
+                        <?php } ?>
+                        <?php if ($hasRole) { ?>
+                            <select name="role">
+                                <option value="user">Обычный пользователь</option>
+                                <option value="admin">Администратор</option>
+                            </select>
+                        <?php } ?>
                         <input type="submit" value="Добавить">
                     </form>
                 </div>
@@ -159,11 +225,15 @@ $assignments = pg_query(
                             <input type="hidden" name="user_id" value="<?php echo (int)$editUser['userid']; ?>">
                             <input name="login" type="text" placeholder="Имя пользователя" value="<?php echo htmlspecialchars($editUser['userlogin']); ?>" required>
                             <input name="password" type="password" placeholder="Новый пароль (необязательно)">
-                            <input name="office" type="text" placeholder="Офис" value="<?php echo htmlspecialchars($editUser['useroffice'] ?? ''); ?>">
-                            <select name="role">
-                                <option value="user" <?php echo ($editUser['userrole'] ?? '') === 'user' ? 'selected' : ''; ?>>Обычный пользователь</option>
-                                <option value="admin" <?php echo ($editUser['userrole'] ?? '') === 'admin' ? 'selected' : ''; ?>>Администратор</option>
-                            </select>
+                            <?php if ($hasOffice) { ?>
+                                <input name="office" type="text" placeholder="Офис" value="<?php echo htmlspecialchars($editUser['useroffice'] ?? ''); ?>">
+                            <?php } ?>
+                            <?php if ($hasRole) { ?>
+                                <select name="role">
+                                    <option value="user" <?php echo ($editUser['userrole'] ?? '') === 'user' ? 'selected' : ''; ?>>Обычный пользователь</option>
+                                    <option value="admin" <?php echo ($editUser['userrole'] ?? '') === 'admin' ? 'selected' : ''; ?>>Администратор</option>
+                                </select>
+                            <?php } ?>
                             <input type="submit" value="Сохранить">
                         </form>
                     <?php } else { ?>
@@ -178,8 +248,12 @@ $assignments = pg_query(
                 <thead>
                     <tr>
                         <td>Имя пользователя</td>
-                        <td>Офис</td>
-                        <td>Роль</td>
+                        <?php if ($hasOffice) { ?>
+                            <td>Офис</td>
+                        <?php } ?>
+                        <?php if ($hasRole) { ?>
+                            <td>Роль</td>
+                        <?php } ?>
                         <td>Действие</td>
                     </tr>
                 </thead>
@@ -188,8 +262,12 @@ $assignments = pg_query(
                         <?php while ($user = pg_fetch_assoc($users)) { ?>
                             <tr>
                                 <td><?php echo htmlspecialchars($user['userlogin']); ?></td>
-                                <td><?php echo htmlspecialchars($user['useroffice'] ?? ''); ?></td>
-                                <td><?php echo ($user['userrole'] ?? 'user') === 'admin' ? 'Администратор' : 'Обычный пользователь'; ?></td>
+                                <?php if ($hasOffice) { ?>
+                                    <td><?php echo htmlspecialchars($user['useroffice'] ?? ''); ?></td>
+                                <?php } ?>
+                                <?php if ($hasRole) { ?>
+                                    <td><?php echo ($user['userrole'] ?? 'user') === 'admin' ? 'Администратор' : 'Обычный пользователь'; ?></td>
+                                <?php } ?>
                                 <td><a href="managment.php?user_id=<?php echo (int)$user['userid']; ?>">Редактировать</a></td>
                             </tr>
                         <?php } ?>
