@@ -8,8 +8,9 @@
     --text: #1d1d1f;
     --muted: #6e6e73;
     --line: #e5e5ea;
-    --accent: #007aff;
-    --accent-strong: #0060df;
+    --accent: #2bbf6a;
+    --accent-strong: #1fa85a;
+    --accent-rgb: 43, 191, 106;
     --success: #34c759;
     --danger: #ff3b30;
     --shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
@@ -39,7 +40,7 @@ h1 {
 
 .container {
     max-width: 1200px;
-    margin: 24px auto 48px;
+    margin: 32px auto 48px;
     padding: 0 24px;
     display: flex;
     flex-direction: column;
@@ -100,12 +101,26 @@ textarea {
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 
+.management-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.management-form select {
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: #fff;
+    font-size: 14px;
+}
+
 .input-column input[type="text"]:focus,
 .input-column input[type="tel"]:focus,
 textarea:focus {
     outline: none;
-    border-color: rgba(0, 122, 255, 0.6);
-    box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
+    border-color: rgba(var(--accent-rgb), 0.6);
+    box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.15);
 }
 
 /* Убираем внешние подписи P, так как теперь текст внутри полей */
@@ -329,13 +344,14 @@ tr:nth-child(odd) {
 
 /* Подсветка строки при наведении */
 tbody tr:hover {
-    background-color: rgba(0, 122, 255, 0.08) !important;
+    background-color: rgba(var(--accent-rgb), 0.08) !important;
     cursor: pointer;
 }
 
 /* Ширина колонок */
 table .phone { width: 150px; text-align: center; }
 table .site { width: 200px; }
+table .author { width: 140px; text-align: center; }
 table .call { width: 140px; text-align: center; }
 table .date { color: #4CAF50; }
 
@@ -397,6 +413,12 @@ table .date { color: #4CAF50; }
     text-align: center;
     padding: 20px;
     color: var(--muted);
+}
+
+.ui-datepicker {
+    z-index: 9999;
+    max-width: calc(100vw - 16px);
+    box-sizing: border-box;
 }
 
 /* Цвета статусов звонков */
@@ -488,10 +510,15 @@ table .date { color: #4CAF50; }
 
     .row {
         flex-direction: column;
+        gap: 8px;
     }
 
     .input-column {
         min-width: 100%;
+    }
+
+    .forms {
+        gap: 12px;
     }
 
     .view-controls {

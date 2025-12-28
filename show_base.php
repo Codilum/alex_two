@@ -1,6 +1,12 @@
 ﻿<?php
 
-require_once 'config/config.php';
+require_once 'auth_utils.php';
+
+$auth = requireAuth('page');
+$currentUser = $auth['user'];
+$conn = $auth['conn'];
+$isAdmin = isAdmin($currentUser);
+$userid = (int)$currentUser['userid'];
 
 $callClass = "";
 $today = date("Y-m-d");
@@ -9,7 +15,7 @@ $today = date("Y-m-d");
 $no_of_records_per_page = 10;
 
 if (isset($_GET['id'])) {
-    $id = $_GET['id'];
+    $id = (int)$_GET['id'];
 } else {
     $id = '';
 }
@@ -50,21 +56,12 @@ if (isset($_GET['site_page'])) {
     $site_page = 1;
 }
 
-if (isset($_COOKIE['userid'])) {
-    $userid = $_COOKIE['userid'];
-} else {
-    $userid = 0;
-}
-
 $response = '';
 $cur_page = $page;
 // Для БД отступ (offset) считается от 0, но страница у нас 1
 $page_db = $page - 1; 
 
 $offset = abs($page_db) * $no_of_records_per_page;
-
-$conn_string = "host=" . DB_HOST . " dbname=" . DB_NAME . " user=" . DB_USER . " password=" . DB_PASS . "";
-$conn = pg_connect($conn_string);
 
 // --- СЧИТАЕМ ОБЩЕЕ КОЛИЧЕСТВО СТРАНИЦ ---
 // (Оставляем твою логику, но упрощаем подсчет)
@@ -84,6 +81,7 @@ function findPagesNumber($query)
 // --- ЛОГИКА ЗАПРОСОВ ---
 
 if ($id) {
+    $userFilter = $isAdmin ? "" : " WHERE userid = $userid";
     $sql = "SELECT
                 next_id,
                 next_phonenumber,
@@ -97,7 +95,7 @@ if ($id) {
                        lead(sitedomen) over (order by id) as next_sitedomen,
                        lead(commenttext) over (order by id) as next_commenttext,
                        lead(nextcalldate) over (order by id) as next_nextcalldate
-                from calls
+                from calls" . $userFilter . "
             ) as t
             WHERE id = '$id'";
             
@@ -117,22 +115,23 @@ if ($site_page < 1) {
 $sort = in_array($sort, ['asc', 'desc'], true) ? $sort : 'asc';
 $sort_direction = $sort === 'desc' ? 'DESC' : 'ASC';
 $site_navigation = '';
+$accessCondition = $isAdmin ? "1=1" : "calls.userid = '$userid'";
 
 // Формируем основной SQL
 if ($mode === 'history') {
     $site_offset = ($site_page - 1);
     $site_filter = "";
     if ($find_query) {
-        $site_filter = " AND sitedomen = '$find_query'";
+        $site_filter = " AND calls.sitedomen = '$find_query'";
     }
-    $sql_sites_total = "SELECT COUNT(DISTINCT sitedomen) FROM calls WHERE userid = '$userid' $site_filter";
+    $sql_sites_total = "SELECT COUNT(DISTINCT calls.sitedomen) FROM calls WHERE $accessCondition $site_filter";
     $result_sites_total = pg_query($conn, $sql_sites_total);
     $total_sites = $result_sites_total ? (int)pg_fetch_array($result_sites_total)[0] : 0;
 
-    $sql_site = "SELECT sitedomen, COUNT(*) as total, MAX(id) as last_id
+    $sql_site = "SELECT calls.sitedomen, COUNT(*) as total, MAX(calls.id) as last_id
                  FROM calls
-                 WHERE userid = '$userid' $site_filter
-                 GROUP BY sitedomen
+                 WHERE $accessCondition $site_filter
+                 GROUP BY calls.sitedomen
                  ORDER BY last_id DESC
                  LIMIT 1 OFFSET $site_offset";
     $result_site = pg_query($conn, $sql_site);
@@ -144,10 +143,11 @@ if ($mode === 'history') {
     }
 
     if ($current_site) {
-        $sql = "SELECT * FROM calls 
-                WHERE sitedomen = '$current_site'
-                AND userid = '$userid'
-                ORDER BY id DESC";
+        $sql = "SELECT calls.*, users.userlogin FROM calls
+                LEFT JOIN users ON calls.userid = users.userid
+                WHERE calls.sitedomen = '$current_site'
+                AND $accessCondition
+                ORDER BY calls.id DESC";
     } else {
         $sql = null;
     }
@@ -171,36 +171,39 @@ if ($mode === 'history') {
     $site_navigation .= "</div>";
 } else {
     if ($find_query) {
-        $sql = "SELECT * FROM calls 
-                WHERE sitedomen = '$find_query' 
-                AND userid = '$userid'
-                ORDER BY nextcalldate " . $sort_direction . " NULLS LAST, id " . $sort_direction . "
+        $sql = "SELECT calls.*, users.userlogin FROM calls
+                LEFT JOIN users ON calls.userid = users.userid
+                WHERE calls.sitedomen = '$find_query' 
+                AND $accessCondition
+                ORDER BY calls.nextcalldate " . $sort_direction . " NULLS LAST, calls.id " . $sort_direction . "
                 LIMIT $no_of_records_per_page
                 OFFSET $offset";
                 
         $sql_pages = "SELECT COUNT(*) FROM calls 
-                      WHERE sitedomen = '$find_query' AND userid = '$userid'";
+                      WHERE sitedomen = '$find_query' AND $accessCondition";
         $total_pages = findPagesNumber($sql_pages);
 
     } else if ($phone_query) {
-        $sql = "SELECT * FROM calls 
-                WHERE phonenumber = '$phone_query' 
-                AND userid = '$userid'
-                ORDER BY nextcalldate " . $sort_direction . " NULLS LAST, id " . $sort_direction . "
+        $sql = "SELECT calls.*, users.userlogin FROM calls
+                LEFT JOIN users ON calls.userid = users.userid
+                WHERE calls.phonenumber = '$phone_query' 
+                AND $accessCondition
+                ORDER BY calls.nextcalldate " . $sort_direction . " NULLS LAST, calls.id " . $sort_direction . "
                 LIMIT $no_of_records_per_page
                 OFFSET $offset";
                 
         $sql_pages = "SELECT COUNT(*) FROM calls 
-                      WHERE phonenumber = '$phone_query' AND userid = '$userid'";
+                      WHERE phonenumber = '$phone_query' AND $accessCondition";
         $total_pages = findPagesNumber($sql_pages);
     } else {
-        $sql = "SELECT * FROM calls 
-                WHERE userid = '$userid'
-                ORDER BY nextcalldate " . $sort_direction . " NULLS LAST, id " . $sort_direction . "
+        $sql = "SELECT calls.*, users.userlogin FROM calls
+                LEFT JOIN users ON calls.userid = users.userid
+                WHERE $accessCondition
+                ORDER BY calls.nextcalldate " . $sort_direction . " NULLS LAST, calls.id " . $sort_direction . "
                 LIMIT $no_of_records_per_page
                 OFFSET $offset";
                 
-        $sql_pages = "SELECT COUNT(*) FROM calls WHERE userid = '$userid'";
+        $sql_pages = "SELECT COUNT(*) FROM calls WHERE $accessCondition";
         $total_pages = findPagesNumber($sql_pages);
     }
 }
@@ -220,6 +223,7 @@ if ($sql && ($result = pg_query($conn, $sql))) {
                     <tr>
                         <td class="phone">Телефон</td>
                         <td class="site">Сайт</td>
+                        <td class="author">Автор</td>
                         <td>Комментарий</td>
                         <td class="nextcall">Следующий звонок</td>
                     </tr>
@@ -234,6 +238,9 @@ if ($sql && ($result = pg_query($conn, $sql))) {
             $commentBody = trim(preg_replace('/^\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}:\d{2}\s*/', '', $commentText));
         }
         $editable = $commentTimestamp ? isCommentEditable($commentTimestamp) : false;
+        if (!$isAdmin && (int)$array['userid'] !== $userid) {
+            $editable = false;
+        }
 
         if ($array['nextcalldate'] != NULL) {
             $callDateValue = date("Y-m-d", strtotime($array['nextcalldate']));
@@ -249,6 +256,10 @@ if ($sql && ($result = pg_query($conn, $sql))) {
         echo '<tr value="' . $array['id'] . '" data-id="' . $array['id'] . '" data-phone="' . htmlspecialchars($array['phonenumber'], ENT_QUOTES) . '" data-site="' . htmlspecialchars($array['sitedomen'], ENT_QUOTES) . '" data-comment="' . htmlspecialchars($commentBody, ENT_QUOTES) . '" data-editable="' . ($editable ? 1 : 0) . '">';
         echo '<td class="phone"><a href="tel:' .str_replace([' ', '(', ')','-'], ["","","",""], $tel_link). '">'.$array['phonenumber'].'</td>';
         echo '<td class="site"><a href="https://' . $array['sitedomen'] . '" target="_blank">' . $array['sitedomen'] . '</a></td>';
+
+        $authorName = $array['userlogin'] ?? '';
+        $authorLabel = ($array['userid'] == $userid) ? 'Я' : ($authorName !== '' ? $authorName : 'Неизвестно');
+        echo '<td class="author">' . htmlspecialchars($authorLabel) . '</td>';
         // Добавил htmlspecialchars для безопасности
         $commentDisplay = '';
         if ($commentTimestamp) {
@@ -257,7 +268,7 @@ if ($sql && ($result = pg_query($conn, $sql))) {
         if ($commentBody !== '') {
             $commentDisplay .= nl2br(htmlspecialchars($commentBody));
         }
-        echo '<td class="comment"><div class="comment-userid">ID: ' . htmlspecialchars($array['userid']) . '</div><div class="comment-text">' . $commentDisplay . '</div></td>';
+        echo '<td class="comment"><div class="comment-userid">Автор: ' . htmlspecialchars($authorLabel) . '</div><div class="comment-text">' . $commentDisplay . '</div></td>';
         echo '<td class="call ' . $callClass . '" value="' . $array['id'] . '">' . $callDate . '</td>';
         echo '</tr>';
     }

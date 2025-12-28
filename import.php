@@ -4,11 +4,15 @@ header('Content-Type: application/json; charset=utf-8');
 ini_set('display_errors', 0);
 error_reporting(E_ALL);
 
-require_once 'config/config.php';
+require_once 'auth_utils.php';
 
 $response = ['success' => false, 'message' => 'Неизвестная ошибка'];
 
 try {
+    $auth = requireAuth('json');
+    $currentUser = $auth['user'];
+    $conn = $auth['conn'];
+
     if (!isset($_FILES['import_file'])) {
         throw new Exception('Файл не выбран.');
     }
@@ -23,14 +27,9 @@ try {
         throw new Exception('Поддерживаются только файлы CSV или TXT.');
     }
 
-    $userid = isset($_COOKIE['userid']) ? (int)$_COOKIE['userid'] : 0;
+    $userid = (int)$currentUser['userid'];
     if ($userid === 0) {
         throw new Exception('Не удалось определить пользователя.');
-    }
-
-    $conn = pg_connect("host=" . DB_HOST . " dbname=" . DB_NAME . " user=" . DB_USER . " password=" . DB_PASS);
-    if (!$conn) {
-        throw new Exception('Ошибка подключения к БД.');
     }
 
     $handle = fopen($file['tmp_name'], 'r');

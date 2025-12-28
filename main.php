@@ -1,3 +1,10 @@
+<?php
+require_once 'auth_utils.php';
+
+$auth = requireAuth('page');
+$currentUser = $auth['user'];
+$isAdmin = isAdmin($currentUser);
+?>
 <!DOCTYPE html>
 <html>
 <head>
@@ -43,7 +50,33 @@
 				dateFormat: "dd M yy",
 				firstDay: 1,
 				dayNamesMin: [ "Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб" ],
-				monthNames: [ "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль","Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь" ]
+				monthNames: [ "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль","Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь" ],
+				beforeShow: function(input, inst) {
+					setTimeout(function() {
+						let $input = $(input);
+						let dp = inst.dpDiv;
+						let inputOffset = $input.offset();
+						let dpWidth = dp.outerWidth();
+						let dpHeight = dp.outerHeight();
+						let viewportWidth = $(window).width();
+						let viewportHeight = $(window).height();
+						let scrollTop = $(window).scrollTop();
+
+						let left = inputOffset.left;
+						let top = inputOffset.top + $input.outerHeight();
+						const gutter = 8;
+
+						if (left + dpWidth > viewportWidth - gutter) {
+							left = Math.max(gutter, viewportWidth - dpWidth - gutter);
+						}
+
+						if (top + dpHeight > scrollTop + viewportHeight - gutter) {
+							top = inputOffset.top - dpHeight - gutter;
+						}
+
+						dp.css({ top: top + "px", left: left + "px" });
+					}, 0);
+				}
 			});
 			$("#datepicker").datepicker( $.datepicker.regional[ "ru" ] )
 		} );
@@ -474,6 +507,9 @@
 	<div class="top-actions">
 		<a href="/main.php" class="home-button">На главную</a>
 		<div class="top-actions-right">
+			<?php if ($isAdmin) { ?>
+				<a href="/managment.php" class="home-button">Управление пользователями</a>
+			<?php } ?>
 			<button type="button" class="import-button" id="import-button">Импорт</button>
 			<form class="exit" method="POST" action="logout.php">
 				<input name="submit" type="submit" value="Выйти">
