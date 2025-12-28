@@ -10,6 +10,7 @@ $userid = (int)$currentUser['userid'];
 
 $callClass = "";
 $today = date("Y-m-d");
+ensureAssignmentTables($conn);
 
 // Параметры
 $no_of_records_per_page = 10;
@@ -54,6 +55,12 @@ if (isset($_GET['site_page'])) {
     $site_page = (int)$_GET['site_page'];
 } else {
     $site_page = 1;
+}
+
+if (isset($_GET['highlight_id'])) {
+    $highlightId = (int)$_GET['highlight_id'];
+} else {
+    $highlightId = 0;
 }
 
 $response = '';
@@ -115,7 +122,19 @@ if ($site_page < 1) {
 $sort = in_array($sort, ['asc', 'desc'], true) ? $sort : 'asc';
 $sort_direction = $sort === 'desc' ? 'DESC' : 'ASC';
 $site_navigation = '';
-$accessCondition = $isAdmin ? "1=1" : "calls.userid = '$userid'";
+$accessCondition = $isAdmin
+    ? "1=1"
+    : "(calls.userid = '$userid' OR EXISTS (SELECT 1 FROM call_assignments ca WHERE ca.call_id = calls.id AND ca.assigned_to = '$userid'))";
+
+if ($highlightId > 0) {
+    $page = 1;
+    $cur_page = 1;
+    $page_db = 0;
+    $offset = 0;
+}
+
+$summaryTotal = 0;
+$summaryToday = 0;
 
 // Формируем основной SQL
 if ($mode === 'history') {
@@ -169,13 +188,22 @@ if ($mode === 'history') {
         $site_navigation .= "<span class='site-nav disabled'>Следующий сайт</span>";
     }
     $site_navigation .= "</div>";
+
+    if ($current_site) {
+        $summaryTotalQuery = "SELECT COUNT(*) FROM calls WHERE calls.sitedomen = '$current_site' AND $accessCondition";
+        $summaryTodayQuery = "SELECT COUNT(*) FROM calls WHERE calls.sitedomen = '$current_site' AND $accessCondition AND calls.nextcalldate = '$today'";
+        $summaryTotalResult = pg_query($conn, $summaryTotalQuery);
+        $summaryTodayResult = pg_query($conn, $summaryTodayQuery);
+        $summaryTotal = $summaryTotalResult ? (int)pg_fetch_array($summaryTotalResult)[0] : 0;
+        $summaryToday = $summaryTodayResult ? (int)pg_fetch_array($summaryTodayResult)[0] : 0;
+    }
 } else {
     if ($find_query) {
         $sql = "SELECT calls.*, users.userlogin FROM calls
                 LEFT JOIN users ON calls.userid = users.userid
                 WHERE calls.sitedomen = '$find_query' 
                 AND $accessCondition
-                ORDER BY calls.nextcalldate " . $sort_direction . " NULLS LAST, calls.id " . $sort_direction . "
+                ORDER BY " . ($highlightId ? "CASE WHEN calls.id = $highlightId THEN 0 ELSE 1 END, " : "") . "calls.nextcalldate " . $sort_direction . " NULLS LAST, calls.id " . $sort_direction . "
                 LIMIT $no_of_records_per_page
                 OFFSET $offset";
                 
@@ -188,7 +216,7 @@ if ($mode === 'history') {
                 LEFT JOIN users ON calls.userid = users.userid
                 WHERE calls.phonenumber = '$phone_query' 
                 AND $accessCondition
-                ORDER BY calls.nextcalldate " . $sort_direction . " NULLS LAST, calls.id " . $sort_direction . "
+                ORDER BY " . ($highlightId ? "CASE WHEN calls.id = $highlightId THEN 0 ELSE 1 END, " : "") . "calls.nextcalldate " . $sort_direction . " NULLS LAST, calls.id " . $sort_direction . "
                 LIMIT $no_of_records_per_page
                 OFFSET $offset";
                 
@@ -199,13 +227,25 @@ if ($mode === 'history') {
         $sql = "SELECT calls.*, users.userlogin FROM calls
                 LEFT JOIN users ON calls.userid = users.userid
                 WHERE $accessCondition
-                ORDER BY calls.nextcalldate " . $sort_direction . " NULLS LAST, calls.id " . $sort_direction . "
+                ORDER BY " . ($highlightId ? "CASE WHEN calls.id = $highlightId THEN 0 ELSE 1 END, " : "") . "calls.nextcalldate " . $sort_direction . " NULLS LAST, calls.id " . $sort_direction . "
                 LIMIT $no_of_records_per_page
                 OFFSET $offset";
                 
         $sql_pages = "SELECT COUNT(*) FROM calls WHERE $accessCondition";
         $total_pages = findPagesNumber($sql_pages);
     }
+
+    $summaryFilter = $accessCondition;
+    if ($find_query) {
+        $summaryFilter .= " AND calls.sitedomen = '$find_query'";
+    } elseif ($phone_query) {
+        $summaryFilter .= " AND calls.phonenumber = '$phone_query'";
+    }
+
+    $summaryTotalResult = pg_query($conn, "SELECT COUNT(*) FROM calls WHERE $summaryFilter");
+    $summaryTodayResult = pg_query($conn, "SELECT COUNT(*) FROM calls WHERE $summaryFilter AND calls.nextcalldate = '$today'");
+    $summaryTotal = $summaryTotalResult ? (int)pg_fetch_array($summaryTotalResult)[0] : 0;
+    $summaryToday = $summaryTodayResult ? (int)pg_fetch_array($summaryTodayResult)[0] : 0;
 }
 
 $_POST['total'] = $total_pages;
@@ -217,10 +257,12 @@ if ($sql && ($result = pg_query($conn, $sql))) {
     // Она съедала первую запись. Теперь цикл начнется сразу с первой строки.
 
     echo $site_navigation;
+    echo '<div class="summary-bar"><div class="summary-item">Всего: <span class="summary-value">' . $summaryTotal . '</span></div><div class="summary-item">Сегодня: <span class="summary-value">' . $summaryToday . '</span></div></div>';
     echo '<div id="table">
             <table>
                 <thead>
                     <tr>
+                        <td class="actions"></td>
                         <td class="phone">Телефон</td>
                         <td class="site">Сайт</td>
                         <td class="author">Автор</td>
@@ -253,7 +295,20 @@ if ($sql && ($result = pg_query($conn, $sql))) {
         $callClass = checkCallDate($callDateValue, $today);
         $tel_link = $array['phonenumber'];
 
-        echo '<tr value="' . $array['id'] . '" data-id="' . $array['id'] . '" data-phone="' . htmlspecialchars($array['phonenumber'], ENT_QUOTES) . '" data-site="' . htmlspecialchars($array['sitedomen'], ENT_QUOTES) . '" data-comment="' . htmlspecialchars($commentBody, ENT_QUOTES) . '" data-editable="' . ($editable ? 1 : 0) . '">';
+        $rowHighlightClass = $highlightId > 0 && (int)$array['id'] === $highlightId ? ' highlighted-row' : '';
+        echo '<tr id="call-row-' . $array['id'] . '" class="data-row' . $rowHighlightClass . '" value="' . $array['id'] . '" data-id="' . $array['id'] . '" data-phone="' . htmlspecialchars($array['phonenumber'], ENT_QUOTES) . '" data-site="' . htmlspecialchars($array['sitedomen'], ENT_QUOTES) . '" data-comment="' . htmlspecialchars($commentBody, ENT_QUOTES) . '" data-editable="' . ($editable ? 1 : 0) . '">';
+        echo '<td class="actions"><div class="row-actions" data-call-id="' . $array['id'] . '">
+                <button type="button" class="row-actions-toggle" title="Передать или скопировать">🔗</button>
+                <div class="row-actions-menu">
+                    <div class="row-actions-title">Передать запись</div>
+                    <select class="row-actions-select"></select>
+                    <div class="row-actions-buttons">
+                        <button type="button" class="row-actions-send" title="Отправить">📤</button>
+                        <button type="button" class="row-actions-copy" title="Скопировать ссылку">📋</button>
+                    </div>
+                    <div class="row-actions-status"></div>
+                </div>
+            </div></td>';
         echo '<td class="phone"><a href="tel:' .str_replace([' ', '(', ')','-'], ["","","",""], $tel_link). '">'.$array['phonenumber'].'</td>';
         echo '<td class="site"><a href="https://' . $array['sitedomen'] . '" target="_blank">' . $array['sitedomen'] . '</a></td>';
 
@@ -336,6 +391,7 @@ if ($sql && ($result = pg_query($conn, $sql))) {
 } else {
     if ($mode === 'history') {
         echo $site_navigation;
+        echo '<div class="summary-bar"><div class="summary-item">Всего: <span class="summary-value">' . $summaryTotal . '</span></div><div class="summary-item">Сегодня: <span class="summary-value">' . $summaryToday . '</span></div></div>';
         echo '<div class="empty-state">Нет данных для отображения.</div>';
     } else {
         echo "Error: " . $sql . "<br>" . pg_last_error();
