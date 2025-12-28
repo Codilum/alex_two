@@ -23,22 +23,30 @@ if (!$conn) {
 
 if(isset($_POST['submit']))
 {
-    // Вытаскиваем из БД запись, у которой логин равняется введенному
-    //$sql = "SELECT userid, userpassword FROM users WHERE userlogin='admin'";
-    $sql = "SELECT userid, userpassword FROM users";
-    $result = pg_query($conn, $sql);
+    $login = trim($_POST['login'] ?? '');
+    $password = trim($_POST['password'] ?? '');
 
-    while ($data = pg_fetch_array($result))
+    if ($login === '' || $password === '') {
+        print "Введите имя пользователя и пароль";
+        exit();
+    }
+
+    $result = pg_query_params(
+        $conn,
+        "SELECT userid, userpassword FROM users WHERE userlogin = $1 LIMIT 1",
+        [$login]
+    );
+
+    if ($result && ($data = pg_fetch_array($result)))
     {  
-        //echo($data);
         // Сравниваем пароли
-        if($data['userpassword'] === md5(md5($_POST['password'])))
+        if($data['userpassword'] === md5(md5($password)))
         {
             // Генерируем случайное число и шифруем его
             $hash = md5(generateCode(10));
 
             // Записываем в БД новый хеш авторизации и IP
-            pg_query($conn, "UPDATE users SET userhash='".$hash."' WHERE userid='".$data['userid']."'");
+            pg_query_params($conn, "UPDATE users SET userhash=$1 WHERE userid=$2", [$hash, $data['userid']]);
 
             // Ставим куки
             setcookie("userid", $data['userid'], time()+60*60*24*30, "/");
@@ -48,10 +56,8 @@ if(isset($_POST['submit']))
             header("Location: check.php"); 
             exit();
         }
-        else
-        {
-            print "Вы ввели неправильный логин/пароль";
-        }
     }
+
+    print "Вы ввели неправильный логин/пароль";
 }
 ?>

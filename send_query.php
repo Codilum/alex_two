@@ -3,24 +3,24 @@
 header('Content-Type: application/json; charset=utf-8');
 
 // 2. Скрываем ошибки PHP от вывода, чтобы не ломать JSON
-ini_set('display_errors', 0); 
+ini_set('display_errors', 0);
 error_reporting(E_ALL);
 
-require_once 'config/config.php';
+require_once 'auth_utils.php';
 
 $response = ['success' => false, 'message' => 'Неизвестная ошибка'];
 
 try {
-    // Подключение к БД
-    $conn = pg_connect("host=".DB_HOST." dbname=".DB_NAME." user=".DB_USER." password=".DB_PASS);
-    if (!$conn) {
-        throw new Exception("Ошибка подключения к БД");
-    }
+    $auth = requireAuth('json');
+    $currentUser = $auth['user'];
+    $conn = $auth['conn'];
+    $userid = (int)$currentUser['userid'];
+    $isAdmin = isAdmin($currentUser);
 
     // Получение данных
     $phone = trim($_POST['phone'] ?? '');
     $site = trim($_POST['site'] ?? '');
-    $dateRaw = trim($_POST['date'] ?? ''); 
+    $dateRaw = trim($_POST['date'] ?? '');
     $comment = trim($_POST['comment'] ?? '');
     $status = $_POST['status'] ?? '';
     $editId = (int)($_POST['edit_id'] ?? 0);
@@ -53,12 +53,16 @@ try {
         }
     }
 
-    // Формируем комментарий
-    $userid = isset($_COOKIE['userid']) ? (int)$_COOKIE['userid'] : 0;
-
     if ($editId > 0) {
-        $sql_fetch = "SELECT commenttext FROM calls WHERE id = $1 AND userid = $2";
-        $result_fetch = pg_query_params($conn, $sql_fetch, [$editId, $userid]);
+        if ($isAdmin) {
+            $sql_fetch = "SELECT commenttext FROM calls WHERE id = $1";
+            $params_fetch = [$editId];
+        } else {
+            $sql_fetch = "SELECT commenttext FROM calls WHERE id = $1 AND userid = $2";
+            $params_fetch = [$editId, $userid];
+        }
+
+        $result_fetch = pg_query_params($conn, $sql_fetch, $params_fetch);
         if (!$result_fetch || pg_num_rows($result_fetch) === 0) {
             throw new Exception("Комментарий не найден.");
         }
@@ -89,8 +93,15 @@ try {
             $fullComment .= " [Статус: $status]";
         }
 
-        $sql_update = "UPDATE calls SET commenttext = $1 WHERE id = $2 AND userid = $3";
-        $result_update = pg_query_params($conn, $sql_update, [$fullComment, $editId, $userid]);
+        if ($isAdmin) {
+            $sql_update = "UPDATE calls SET commenttext = $1 WHERE id = $2";
+            $params_update = [$fullComment, $editId];
+        } else {
+            $sql_update = "UPDATE calls SET commenttext = $1 WHERE id = $2 AND userid = $3";
+            $params_update = [$fullComment, $editId, $userid];
+        }
+
+        $result_update = pg_query_params($conn, $sql_update, $params_update);
 
         if ($result_update) {
             $response['success'] = true;
@@ -106,7 +117,6 @@ try {
         }
 
         // === SQL ЗАПРОС ===
-        // Убрали fio и calldate. Оставили только то, что точно есть.
         $sql = "INSERT INTO calls (phonenumber, sitedomen, nextcalldate, commenttext, userid) 
                 VALUES ($1, $2, $3, $4, $5)";
 
