@@ -105,8 +105,30 @@ function ensureAssignmentTables($conn)
             read_at TIMESTAMP WITHOUT TIME ZONE
         )"
     );
-    pg_query($conn, "CREATE INDEX IF NOT EXISTS call_assignments_call_id_idx ON call_assignments (call_id)");
-    pg_query($conn, "CREATE INDEX IF NOT EXISTS call_assignments_assigned_to_idx ON call_assignments (assigned_to)");
+    ensureIndex($conn, 'call_assignments_call_id_idx', 'call_assignments', 'call_id');
+    ensureIndex($conn, 'call_assignments_assigned_to_idx', 'call_assignments', 'assigned_to');
+}
+
+function ensureIndex($conn, $indexName, $tableName, $columnName)
+{
+    $result = pg_query_params(
+        $conn,
+        "SELECT 1 FROM pg_indexes WHERE indexname = $1 LIMIT 1",
+        [$indexName]
+    );
+
+    if ($result && pg_num_rows($result) > 0) {
+        return;
+    }
+
+    $indexIdentifier = pg_escape_identifier($conn, $indexName);
+    $tableIdentifier = pg_escape_identifier($conn, $tableName);
+    $columnIdentifier = pg_escape_identifier($conn, $columnName);
+
+    pg_query(
+        $conn,
+        "CREATE INDEX {$indexIdentifier} ON {$tableIdentifier} ({$columnIdentifier})"
+    );
 }
 
 function clearAuthCookies()
