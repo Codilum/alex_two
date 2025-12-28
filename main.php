@@ -3,7 +3,18 @@ require_once 'auth_utils.php';
 
 $auth = requireAuth('page');
 $currentUser = $auth['user'];
+$conn = $auth['conn'];
 $isAdmin = isAdmin($currentUser);
+$userList = [];
+$userResult = pg_query($conn, 'SELECT userid, userlogin FROM users ORDER BY userlogin');
+if ($userResult) {
+	while ($userRow = pg_fetch_assoc($userResult)) {
+		$userList[] = [
+			'userid' => (int)$userRow['userid'],
+			'userlogin' => $userRow['userlogin']
+		];
+	}
+}
 ?>
 <!DOCTYPE html>
 <html>
@@ -18,6 +29,10 @@ $isAdmin = isAdmin($currentUser);
 	<script src="jquery.min.js" type="text/javascript"></script>
 	<script src="jquery.maskedinput.js" type="text/javascript"></script>
 	<script src="jquery-ui.js" type="text/javascript"></script>
+	<script>
+		window.availableUsers = <?php echo json_encode($userList, JSON_UNESCAPED_UNICODE); ?>;
+		window.currentUserId = <?php echo (int)$currentUser['userid']; ?>;
+	</script>
 </head>
 <body>
 	<script>
@@ -43,6 +58,10 @@ $isAdmin = isAdmin($currentUser);
 		$('#sort-order').val(sortOrder);
 		updateModeButtons(viewMode);
 		toggleSortControl(viewMode);
+		refreshNotificationBell();
+		loadNotifications();
+		populateAssignmentMenus();
+		scrollToHighlight();
 
 		$("#phone").mask("9 (999) 999-99-99");
 		$( function() {
@@ -127,7 +146,8 @@ $isAdmin = isAdmin($currentUser);
 				page: parseInt(targetPage, 10),
 				mode: params.mode,
 				sort: params.sort,
-				sitePage: params.sitePage
+				sitePage: params.sitePage,
+				highlightId: params.highlightId
 			});
 		});
 		$('body').on('click', '.site-nav', function(){
@@ -142,7 +162,8 @@ $isAdmin = isAdmin($currentUser);
 				page: 1,
 				mode: 'history',
 				sort: params.sort,
-				sitePage: parseInt(targetPage, 10)
+				sitePage: parseInt(targetPage, 10),
+				highlightId: params.highlightId
 			});
 		});
 		$('body').on('click', 'table .call', function(){
@@ -171,7 +192,8 @@ $isAdmin = isAdmin($currentUser);
 				page: page,
 				mode: mode,
 				sort: sort,
-				sitePage: sitePage
+				sitePage: sitePage,
+				highlightId: getUrlState().highlightId
 			});
 		});
 		$('body').on('click', 'table .comment', function(){
@@ -267,6 +289,68 @@ $isAdmin = isAdmin($currentUser);
 				sitePage: 1
 			});
 		});
+		$('body').on('click', '.row-actions-toggle', function(event) {
+			event.stopPropagation();
+			let menu = $(this).siblings('.row-actions-menu');
+			$('.row-actions-menu').not(menu).removeClass('active');
+			menu.toggleClass('active');
+			populateAssignmentMenus(menu);
+		});
+		$('body').on('click', '.row-actions-menu', function(event) {
+			event.stopPropagation();
+		});
+		$('body').on('click', '.row-actions-send', function(event) {
+			event.stopPropagation();
+			let container = $(this).closest('.row-actions');
+			let callId = container.data('call-id');
+			let selectedUser = container.find('.row-actions-select').val();
+			let status = container.find('.row-actions-status');
+			if (!selectedUser) {
+				status.text('Выберите пользователя.');
+				return;
+			}
+			status.text('Отправляем...');
+			$.post('assign_call.php', { call_id: callId, assigned_to: selectedUser }, function(response) {
+				if (response.success) {
+					status.text('Передано.');
+					refreshNotificationBell();
+				} else {
+					status.text(response.message || 'Ошибка.');
+				}
+			}, 'json').fail(function() {
+				status.text('Ошибка отправки.');
+			});
+		});
+		$('body').on('click', '.row-actions-copy', function(event) {
+			event.stopPropagation();
+			let container = $(this).closest('.row-actions');
+			let callId = container.data('call-id');
+			let link = window.location.origin + '/main.php?highlight_id=' + callId;
+			copyToClipboard(link);
+			container.find('.row-actions-status').text('Ссылка скопирована.');
+		});
+		$(document).on('click', function() {
+			$('.row-actions-menu').removeClass('active');
+		});
+		$('body').on('click', '#notification-button', function(event) {
+			event.stopPropagation();
+			$('#notification-panel').toggleClass('active');
+			loadNotifications();
+		});
+		$('body').on('click', '#notification-panel', function(event) {
+			event.stopPropagation();
+		});
+		$('body').on('click', '#notifications-mark-read', function() {
+			$.post('notifications.php', { action: 'mark_read' }, function(response) {
+				if (response.success) {
+					loadNotifications();
+					refreshNotificationBell();
+				}
+			}, 'json');
+		});
+		$(document).on('click', function() {
+			$('#notification-panel').removeClass('active');
+		});
 	});
 
 	function loadData(options) {
@@ -277,6 +361,7 @@ $isAdmin = isAdmin($currentUser);
 		let mode = options.mode || 'dates';
 		let sort = options.sort || 'asc';
 		let sitePage = options.sitePage || 1;
+		let highlightId = options.highlightId || '';
 
 		if (search) {
 			query.set('search', search);
@@ -291,6 +376,9 @@ $isAdmin = isAdmin($currentUser);
 		query.set('sort', sort);
 		if (sitePage > 1) {
 			query.set('site_page', sitePage);
+		}
+		if (highlightId) {
+			query.set('highlight_id', highlightId);
 		}
 
 		let url = "/main.php";
@@ -308,7 +396,8 @@ $isAdmin = isAdmin($currentUser);
 				page: page,
 				mode: mode,
 				sort: sort,
-				site_page: sitePage
+				site_page: sitePage,
+				highlight_id: highlightId
 			},
 			onAjaxSuccess
 		);
@@ -316,6 +405,8 @@ $isAdmin = isAdmin($currentUser);
 		function onAjaxSuccess(data) {
 			$('#data').html(data);
 			resetEditState();
+			populateAssignmentMenus();
+			scrollToHighlight();
 		}
 	};
 
@@ -353,8 +444,89 @@ $isAdmin = isAdmin($currentUser);
 			page: parseInt(params.get('page') || '1', 10),
 			mode: params.get('mode') || 'dates',
 			sort: params.get('sort') || 'asc',
-			sitePage: parseInt(params.get('site_page') || '1', 10)
+			sitePage: parseInt(params.get('site_page') || '1', 10),
+			highlightId: params.get('highlight_id') || ''
 		};
+	}
+
+	function populateAssignmentMenus(container) {
+		let $menus = container ? $(container).find('.row-actions-select') : $('.row-actions-select');
+		$menus.each(function() {
+			let $select = $(this);
+			if ($select.data('populated')) {
+				return;
+			}
+			$select.append($('<option>', { value: '', text: 'Выберите пользователя' }));
+			(window.availableUsers || []).forEach(function(user) {
+				if (user.userid === window.currentUserId) {
+					return;
+				}
+				$select.append($('<option>', { value: user.userid, text: user.userlogin }));
+			});
+			$select.data('populated', true);
+		});
+	}
+
+	function copyToClipboard(text) {
+		if (navigator.clipboard && window.isSecureContext) {
+			navigator.clipboard.writeText(text);
+			return;
+		}
+		let temp = document.createElement('textarea');
+		temp.value = text;
+		document.body.appendChild(temp);
+		temp.select();
+		document.execCommand('copy');
+		document.body.removeChild(temp);
+	}
+
+	function scrollToHighlight() {
+		let params = new URLSearchParams(window.location.search);
+		let highlightId = params.get('highlight_id');
+		if (!highlightId) {
+			return;
+		}
+		let target = document.getElementById('call-row-' + highlightId);
+		if (target) {
+			target.classList.add('highlighted-row');
+			target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		}
+	}
+
+	function refreshNotificationBell() {
+		$.get('notifications.php', function(response) {
+			if (response && typeof response.unread_count !== 'undefined') {
+				let hasUnread = response.unread_count > 0;
+				$('#notification-dot').toggleClass('active', hasUnread);
+			}
+		}, 'json');
+	}
+
+	function loadNotifications() {
+		$.get('notifications.php', function(response) {
+			if (!response || !response.notifications) {
+				return;
+			}
+			let list = $('#notification-list');
+			list.empty();
+			if (response.notifications.length === 0) {
+				list.append('<div class="notification-empty">Нет новых уведомлений.</div>');
+			} else {
+				response.notifications.forEach(function(item) {
+					let callDate = item.nextcalldate ? item.nextcalldate : 'Без даты';
+					let assignedAt = item.assigned_at || '';
+					let from = item.assigned_by || 'Неизвестно';
+					let unreadClass = item.read_at ? '' : 'unread';
+					let html = '<div class="notification-item ' + unreadClass + '">' +
+						'<div class="notification-title">Назначен звонок - ' + callDate + '</div>' +
+						'<div class="notification-meta">' + assignedAt + ' • от: ' + from + '</div>' +
+						'</div>';
+					list.append(html);
+				});
+			}
+			let hasUnread = response.unread_count > 0;
+			$('#notification-dot').toggleClass('active', hasUnread);
+		}, 'json');
 	}
  
 	function sendAjaxForm(ajax_form, url, site, page) {
@@ -584,12 +756,27 @@ $isAdmin = isAdmin($currentUser);
 			<button type="button" class="mode-button" data-mode="dates">По датам</button>
 			<button type="button" class="mode-button" data-mode="history">История комментариев</button>
 		</div>
-		<div class="sort-control" id="sort-control">
-			<label for="sort-order">Сортировка:</label>
-			<select id="sort-order">
-				<option value="asc">Сначала старые</option>
-				<option value="desc">Сначала новые</option>
-			</select>
+		<div class="view-controls-right">
+			<div class="sort-control" id="sort-control">
+				<label for="sort-order">Сортировка:</label>
+				<select id="sort-order">
+					<option value="asc">Сначала старые</option>
+					<option value="desc">Сначала новые</option>
+				</select>
+			</div>
+			<div class="notification-wrapper">
+				<button type="button" id="notification-button" class="notification-button" title="Уведомления">
+					<span class="notification-icon">📞</span>
+					<span id="notification-dot" class="notification-dot"></span>
+				</button>
+				<div id="notification-panel" class="notification-panel">
+					<div class="notification-header">
+						<span>Уведомления</span>
+						<button type="button" id="notifications-mark-read" class="notification-mark-read">Отметить прочитанными</button>
+					</div>
+					<div id="notification-list" class="notification-list"></div>
+				</div>
+			</div>
 		</div>
 	</div>
 

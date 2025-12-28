@@ -3,6 +3,7 @@
 require_once 'auth_utils.php';
 
 $conn = openDbConnection();
+ensureDefaultUsers($conn);
 $user = getAuthenticatedUser($conn);
 
 if ($user) {

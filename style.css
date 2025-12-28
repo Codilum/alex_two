@@ -242,10 +242,76 @@ button:hover {
     margin: 10px;
 }
 
+.login-card {
+    margin: 40px auto 0;
+    max-width: 420px;
+    width: 100%;
+    padding: 28px;
+    border-radius: 20px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    text-align: left;
+}
+
+.login-header {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.login-title {
+    font-size: 22px;
+    font-weight: 600;
+}
+
+.login-subtitle {
+    font-size: 14px;
+    color: var(--muted);
+}
+
+.login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.login-label {
+    font-size: 13px;
+    color: var(--muted);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.login-form input[type="text"],
+.login-form input[type="password"] {
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    font-size: 14px;
+}
+
+.login-submit {
+    width: 100%;
+}
+
+.login-error {
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(255, 59, 48, 0.1);
+    color: var(--danger);
+    font-size: 14px;
+    border: 1px solid rgba(255, 59, 48, 0.2);
+}
+
 /* =========================================
    ТАБЛИЦА В СТИЛЕ EXCEL (Обновлено)
    ========================================= */
-#data {
+#data,
+.data-block {
     margin-top: 12px;
     background: var(--surface);
     border-radius: 16px;
@@ -264,6 +330,12 @@ button:hover {
     background: var(--surface);
     border-radius: 16px;
     box-shadow: var(--shadow);
+}
+
+.view-controls-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
 }
 
 .mode-switch {
@@ -354,11 +426,226 @@ table .site { width: 200px; }
 table .author { width: 140px; text-align: center; }
 table .call { width: 140px; text-align: center; }
 table .date { color: #4CAF50; }
+table .actions { width: 70px; text-align: center; }
 
 .comment-userid {
     font-size: 12px;
     color: var(--muted);
     margin-bottom: 4px;
+}
+
+.summary-bar {
+    display: flex;
+    gap: 16px;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background-color: #f8f8fb;
+    margin-bottom: 10px;
+    font-weight: 600;
+}
+
+.summary-item {
+    display: flex;
+    gap: 6px;
+    color: var(--muted);
+}
+
+.summary-value {
+    color: var(--text);
+}
+
+.row-actions {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.row-actions-toggle {
+    background: #fff;
+    border: 1px solid var(--line);
+    color: var(--text);
+    padding: 6px 8px;
+    border-radius: 10px;
+    font-size: 16px;
+}
+
+.row-actions-toggle:hover {
+    background: #f2f2f7;
+    box-shadow: none;
+    transform: none;
+}
+
+.row-actions-menu {
+    position: absolute;
+    top: 38px;
+    right: 0;
+    min-width: 200px;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    padding: 10px;
+    display: none;
+    z-index: 10;
+}
+
+.row-actions-menu.active {
+    display: block;
+}
+
+.row-actions-title {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 6px;
+}
+
+.row-actions-select {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    font-size: 13px;
+}
+
+.row-actions-buttons {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.row-actions-buttons button {
+    flex: 1;
+    padding: 6px;
+    font-size: 14px;
+}
+
+.row-actions-status {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.highlighted-row {
+    background-color: rgba(43, 191, 106, 0.15) !important;
+    border-color: rgba(43, 191, 106, 0.4);
+}
+
+.notification-wrapper {
+    position: relative;
+}
+
+.notification-button {
+    background: #fff;
+    border: 1px solid var(--line);
+    color: var(--text);
+    padding: 8px 10px;
+    border-radius: 12px;
+    position: relative;
+}
+
+.notification-button:hover {
+    background: #f2f2f7;
+    box-shadow: none;
+    transform: none;
+}
+
+.notification-icon {
+    font-size: 18px;
+}
+
+.notification-dot {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--danger);
+    box-shadow: 0 0 0 rgba(255, 59, 48, 0.6);
+    opacity: 0;
+}
+
+.notification-dot.active {
+    opacity: 1;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.6); }
+    70% { transform: scale(1.2); box-shadow: 0 0 0 8px rgba(255, 59, 48, 0); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 59, 48, 0); }
+}
+
+.notification-panel {
+    position: absolute;
+    top: 46px;
+    right: 0;
+    width: 320px;
+    max-height: 360px;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 12px;
+    display: none;
+    z-index: 20;
+}
+
+.notification-panel.active {
+    display: block;
+}
+
+.notification-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    font-weight: 600;
+}
+
+.notification-mark-read {
+    background: transparent;
+    border: none;
+    color: var(--accent);
+    font-size: 12px;
+    padding: 0;
+}
+
+.notification-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.notification-item {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 8px 10px;
+    background: #f9f9fb;
+}
+
+.notification-item.unread {
+    border-color: rgba(43, 191, 106, 0.5);
+    background: rgba(43, 191, 106, 0.1);
+}
+
+.notification-title {
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.notification-meta {
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.notification-empty {
+    font-size: 13px;
+    color: var(--muted);
+    text-align: center;
 }
 
 .comment-text {
@@ -491,7 +778,8 @@ table .date { color: #4CAF50; }
         padding: 0 16px;
     }
 
-    #data {
+    #data,
+    .data-block {
         padding: 8px;
     }
 }
@@ -524,6 +812,11 @@ table .date { color: #4CAF50; }
     .view-controls {
         flex-direction: column;
         align-items: flex-start;
+    }
+
+    .view-controls-right {
+        width: 100%;
+        justify-content: space-between;
     }
 }
 

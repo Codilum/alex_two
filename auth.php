@@ -21,13 +21,16 @@ if (!$conn) {
     die("Connection failed: " . pg_last_error());
 }
 
+require_once 'auth_utils.php';
+ensureDefaultUsers($conn);
+
 if(isset($_POST['submit']))
 {
     $login = trim($_POST['login'] ?? '');
     $password = trim($_POST['password'] ?? '');
 
     if ($login === '' || $password === '') {
-        print "Введите имя пользователя и пароль";
+        header("Location: index.php?error=empty");
         exit();
     }
 
@@ -58,6 +61,7 @@ if(isset($_POST['submit']))
         }
     }
 
-    print "Вы ввели неправильный логин/пароль";
+    header("Location: index.php?error=invalid");
+    exit();
 }
 ?>
