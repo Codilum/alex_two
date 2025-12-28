@@ -39,7 +39,7 @@ if (isset($_GET['mode'])) {
 }
 
 if (isset($_GET['sort'])) {
-    $sort = $_GET['sort'];
+    $sort = strtolower(trim($_GET['sort']));
 } else {
     $sort = 'asc';
 }
@@ -114,6 +114,7 @@ if ($site_page < 1) {
     $site_page = 1;
 }
 
+$sort = in_array($sort, ['asc', 'desc'], true) ? $sort : 'asc';
 $sort_direction = $sort === 'desc' ? 'DESC' : 'ASC';
 $site_navigation = '';
 

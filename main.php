@@ -473,10 +473,12 @@
 <div class="container">
 	<div class="top-actions">
 		<a href="/main.php" class="home-button">На главную</a>
-		<button type="button" class="import-button" id="import-button">Импорт</button>
-		<form class="exit" method="POST" action="logout.php">
-			<input name="submit" type="submit" value="Выйти">
-		</form>
+		<div class="top-actions-right">
+			<button type="button" class="import-button" id="import-button">Импорт</button>
+			<form class="exit" method="POST" action="logout.php">
+				<input name="submit" type="submit" value="Выйти">
+			</form>
+		</div>
 	</div>
   	<div class="forms">
 		<form method="post" id="sendForm" action="">
