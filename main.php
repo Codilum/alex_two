@@ -148,6 +148,22 @@
 			let recordId = row.data('id');
 			openEditDialog(comment, editable, recordId);
 		});
+		$(document).on('contextmenu', '#tbody tr', function(event){
+			event.preventDefault();
+			let row = $(this);
+			let phone = row.data('phone') || '';
+			let siteValue = row.data('site') || '';
+			let commentValue = row.data('comment') || '';
+			let callDate = row.find('.call').text().trim();
+
+			$('#phone').val(phone);
+			$('#site').val(siteValue);
+			$('#comment').val(commentValue);
+			$('#datepicker').val(callDate);
+			$('#edit_id').val('');
+			$('#btn').val('Записать');
+			return false;
+		});
 		$('#import-button').on('click', function() {
 			$('#import-message').empty();
 			$('#importForm')[0].reset();
