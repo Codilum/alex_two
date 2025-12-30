@@ -121,28 +121,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$editUser = null;
-if (isset($_GET['user_id'])) {
-    $editId = (int)$_GET['user_id'];
-    if ($editId > 0) {
-        $fields = ['userid', 'userlogin'];
-        if ($hasOffice) {
-            $fields[] = 'useroffice';
-        }
-        if ($hasRole) {
-            $fields[] = 'userrole';
-        }
-        $result = pg_query_params(
-            $conn,
-            'SELECT ' . implode(', ', $fields) . ' FROM users WHERE userid = $1',
-            [$editId]
-        );
-        if ($result && pg_num_rows($result) > 0) {
-            $editUser = pg_fetch_assoc($result);
-        }
-    }
-}
-
 $listFields = ['userid', 'userlogin'];
 if ($hasOffice) {
     $listFields[] = 'useroffice';
@@ -176,6 +154,58 @@ $assignments = pg_query(
     <title>Управление пользователями</title>
 
     <link href="style.css" media="all" rel="Stylesheet" type="text/css" />
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const modal = document.getElementById('edit-modal');
+            const form = document.getElementById('edit-user-form');
+            if (!modal || !form) {
+                return;
+            }
+
+            const loginInput = form.querySelector('[name="login"]');
+            const officeInput = form.querySelector('[name="office"]');
+            const roleSelect = form.querySelector('[name="role"]');
+            const userIdInput = form.querySelector('[name="user_id"]');
+
+            const closeModal = () => {
+                modal.classList.remove('active');
+            };
+
+            document.querySelectorAll('.edit-user-button').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const userId = button.dataset.userId || '';
+                    const userLogin = button.dataset.userLogin || '';
+                    const userOffice = button.dataset.userOffice || '';
+                    const userRole = button.dataset.userRole || 'user';
+
+                    if (userIdInput) {
+                        userIdInput.value = userId;
+                    }
+                    if (loginInput) {
+                        loginInput.value = userLogin;
+                    }
+                    if (officeInput) {
+                        officeInput.value = userOffice;
+                    }
+                    if (roleSelect) {
+                        roleSelect.value = userRole;
+                    }
+
+                    modal.classList.add('active');
+                });
+            });
+
+            modal.addEventListener('click', (event) => {
+                if (event.target === modal) {
+                    closeModal();
+                }
+            });
+
+            modal.querySelectorAll('[data-modal-close]').forEach((button) => {
+                button.addEventListener('click', closeModal);
+            });
+        });
+    </script>
 </head>
 <body>
     <div class="container">
@@ -198,47 +228,26 @@ $assignments = pg_query(
                 <div class="dialog-message" style="color: var(--danger);"><?php echo htmlspecialchars($error); ?></div>
             <?php } ?>
 
-            <div class="row">
-                <div class="input-column">
-                    <h2>Добавить пользователя</h2>
-                    <form method="post" class="management-form">
-                        <input type="hidden" name="action" value="create">
-                        <input name="login" type="text" placeholder="Имя пользователя" required>
-                        <input name="password" type="password" placeholder="Пароль" required>
-                        <?php if ($hasOffice) { ?>
-                            <input name="office" type="text" placeholder="Офис">
-                        <?php } ?>
-                        <?php if ($hasRole) { ?>
-                            <select name="role">
-                                <option value="user">Обычный пользователь</option>
-                                <option value="admin">Администратор</option>
-                            </select>
-                        <?php } ?>
-                        <input type="submit" value="Добавить">
-                    </form>
-                </div>
-                <div class="input-column">
-                    <h2>Редактировать пользователя</h2>
-                    <?php if ($editUser) { ?>
+            <div class="admin-sections">
+                <div class="admin-panel-grid">
+                    <div class="admin-panel-card">
+                        <h2>Создать аккаунт</h2>
                         <form method="post" class="management-form">
-                            <input type="hidden" name="action" value="update">
-                            <input type="hidden" name="user_id" value="<?php echo (int)$editUser['userid']; ?>">
-                            <input name="login" type="text" placeholder="Имя пользователя" value="<?php echo htmlspecialchars($editUser['userlogin']); ?>" required>
-                            <input name="password" type="password" placeholder="Новый пароль (необязательно)">
+                            <input type="hidden" name="action" value="create">
+                            <input name="login" type="text" placeholder="Имя пользователя" required>
+                            <input name="password" type="password" placeholder="Пароль" required>
                             <?php if ($hasOffice) { ?>
-                                <input name="office" type="text" placeholder="Офис" value="<?php echo htmlspecialchars($editUser['useroffice'] ?? ''); ?>">
+                                <input name="office" type="text" placeholder="Офис">
                             <?php } ?>
                             <?php if ($hasRole) { ?>
                                 <select name="role">
-                                    <option value="user" <?php echo ($editUser['userrole'] ?? '') === 'user' ? 'selected' : ''; ?>>Обычный пользователь</option>
-                                    <option value="admin" <?php echo ($editUser['userrole'] ?? '') === 'admin' ? 'selected' : ''; ?>>Администратор</option>
+                                    <option value="user">Пользователь</option>
+                                    <option value="admin">Администратор</option>
                                 </select>
                             <?php } ?>
-                            <input type="submit" value="Сохранить">
+                            <input type="submit" value="Добавить">
                         </form>
-                    <?php } else { ?>
-                        <div class="dialog-message">Выберите пользователя из списка ниже.</div>
-                    <?php } ?>
+                    </div>
                 </div>
             </div>
         </div>
@@ -268,12 +277,48 @@ $assignments = pg_query(
                                 <?php if ($hasRole) { ?>
                                     <td><?php echo ($user['userrole'] ?? 'user') === 'admin' ? 'Администратор' : 'Обычный пользователь'; ?></td>
                                 <?php } ?>
-                                <td><a href="managment.php?user_id=<?php echo (int)$user['userid']; ?>">Редактировать</a></td>
+                                <td class="admin-table-actions">
+                                    <button
+                                        type="button"
+                                        class="edit-user-button"
+                                        data-user-id="<?php echo (int)$user['userid']; ?>"
+                                        data-user-login="<?php echo htmlspecialchars($user['userlogin']); ?>"
+                                        data-user-office="<?php echo htmlspecialchars($user['useroffice'] ?? ''); ?>"
+                                        data-user-role="<?php echo htmlspecialchars($user['userrole'] ?? 'user'); ?>"
+                                    >
+                                        Редактировать
+                                    </button>
+                                </td>
                             </tr>
                         <?php } ?>
                     <?php } ?>
                 </tbody>
             </table>
+        </div>
+
+        <div id="edit-modal" class="modal-overlay" aria-hidden="true">
+            <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title">
+                <div class="modal-header">
+                    <div class="modal-title" id="edit-modal-title">Редактирование пользователя</div>
+                    <button type="button" class="modal-close" data-modal-close aria-label="Закрыть">×</button>
+                </div>
+                <form method="post" class="management-form" id="edit-user-form">
+                    <input type="hidden" name="action" value="update">
+                    <input type="hidden" name="user_id" value="">
+                    <input name="login" type="text" placeholder="Имя пользователя" required>
+                    <input name="password" type="password" placeholder="Новый пароль (необязательно)">
+                    <?php if ($hasOffice) { ?>
+                        <input name="office" type="text" placeholder="Офис">
+                    <?php } ?>
+                    <?php if ($hasRole) { ?>
+                        <select name="role">
+                            <option value="user">Пользователь</option>
+                            <option value="admin">Администратор</option>
+                        </select>
+                    <?php } ?>
+                    <input type="submit" value="Сохранить">
+                </form>
+            </div>
         </div>
 
         <div class="data-block">

@@ -45,11 +45,6 @@ if (isset($_GET['mode'])) {
     $mode = 'dates';
 }
 
-if (isset($_GET['sort'])) {
-    $sort = strtolower(trim($_GET['sort']));
-} else {
-    $sort = 'asc';
-}
 
 if (isset($_GET['site_page'])) {
     $site_page = (int)$_GET['site_page'];
@@ -119,8 +114,7 @@ if ($site_page < 1) {
     $site_page = 1;
 }
 
-$sort = in_array($sort, ['asc', 'desc'], true) ? $sort : 'asc';
-$sort_direction = $sort === 'desc' ? 'DESC' : 'ASC';
+$sort_direction = 'ASC';
 $site_navigation = '';
 $accessCondition = $isAdmin
     ? "1=1"
@@ -265,7 +259,6 @@ if ($sql && ($result = pg_query($conn, $sql))) {
                         <td class="actions"></td>
                         <td class="phone">Телефон</td>
                         <td class="site">Сайт</td>
-                        <td class="author">Автор</td>
                         <td>Комментарий</td>
                         <td class="nextcall">Следующий звонок</td>
                     </tr>
@@ -314,7 +307,7 @@ if ($sql && ($result = pg_query($conn, $sql))) {
 
         $authorName = $array['userlogin'] ?? '';
         $authorLabel = ($array['userid'] == $userid) ? 'Я' : ($authorName !== '' ? $authorName : 'Неизвестно');
-        echo '<td class="author">' . htmlspecialchars($authorLabel) . '</td>';
+        $authorId = (int)$array['userid'];
         // Добавил htmlspecialchars для безопасности
         $commentDisplay = '';
         if ($commentTimestamp) {
@@ -323,7 +316,7 @@ if ($sql && ($result = pg_query($conn, $sql))) {
         if ($commentBody !== '') {
             $commentDisplay .= nl2br(htmlspecialchars($commentBody));
         }
-        echo '<td class="comment"><div class="comment-userid">Автор: ' . htmlspecialchars($authorLabel) . '</div><div class="comment-text">' . $commentDisplay . '</div></td>';
+        echo '<td class="comment"><div class="comment-userid">Автор: ' . htmlspecialchars($authorLabel) . ' (ID ' . $authorId . ')</div><div class="comment-text">' . $commentDisplay . '</div></td>';
         echo '<td class="call ' . $callClass . '" value="' . $array['id'] . '">' . $callDate . '</td>';
         echo '</tr>';
     }

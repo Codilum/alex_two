@@ -42,7 +42,6 @@ if ($userResult) {
 		let site = params.get('search');
 		let phone = params.get('phone');
 		let viewMode = params.get('mode') || 'dates';
-		let sortOrder = params.get('sort') || 'asc';
 		let sitePage = parseInt(params.get('site_page') || '1', 10);
 		if (site) {
 			document.getElementById("site").value = site;
@@ -55,9 +54,7 @@ if ($userResult) {
 		} else {
 			sitePage = 1;
 		}
-		$('#sort-order').val(sortOrder);
 		updateModeButtons(viewMode);
-		toggleSortControl(viewMode);
 		refreshNotificationBell();
 		loadNotifications();
 		populateAssignmentMenus();
@@ -114,7 +111,6 @@ if ($userResult) {
 					phone: phone,
 					page: 1,
 					mode: state.mode,
-					sort: state.sort,
 					sitePage: 1
 				});
 				return false; 
@@ -128,7 +124,6 @@ if ($userResult) {
 					search: search,
 					page: 1,
 					mode: state.mode,
-					sort: state.sort,
 					sitePage: 1
 				});
 				return false; 
@@ -145,7 +140,6 @@ if ($userResult) {
 				phone: params.phone,
 				page: parseInt(targetPage, 10),
 				mode: params.mode,
-				sort: params.sort,
 				sitePage: params.sitePage,
 				highlightId: params.highlightId
 			});
@@ -161,7 +155,6 @@ if ($userResult) {
 				phone: params.phone,
 				page: 1,
 				mode: 'history',
-				sort: params.sort,
 				sitePage: parseInt(targetPage, 10),
 				highlightId: params.highlightId
 			});
@@ -172,7 +165,6 @@ if ($userResult) {
 			let site = params.get('search');
 			let page = params.get('page');
 			let mode = params.get('mode') || 'dates';
-			let sort = params.get('sort') || 'asc';
 			let sitePage = params.get('site_page') || '1';
 			if (site == null) {
 				site = '';
@@ -191,7 +183,6 @@ if ($userResult) {
 				search: site,
 				page: page,
 				mode: mode,
-				sort: sort,
 				sitePage: sitePage,
 				highlightId: getUrlState().highlightId
 			});
@@ -268,24 +259,11 @@ if ($userResult) {
 			let mode = $(this).data('mode');
 			let state = getControlState();
 			updateModeButtons(mode);
-			toggleSortControl(mode);
 			loadData({
 				search: $("#site").val(),
 				phone: $("#phone").val(),
 				page: 1,
 				mode: mode,
-				sort: state.sort,
-				sitePage: 1
-			});
-		});
-		$('#sort-order').on('change', function(){
-			let state = getControlState();
-			loadData({
-				search: $("#site").val(),
-				phone: $("#phone").val(),
-				page: 1,
-				mode: state.mode,
-				sort: state.sort,
 				sitePage: 1
 			});
 		});
@@ -359,7 +337,6 @@ if ($userResult) {
 		let phone = options.phone || '';
 		let page = options.page || 1;
 		let mode = options.mode || 'dates';
-		let sort = options.sort || 'asc';
 		let sitePage = options.sitePage || 1;
 		let highlightId = options.highlightId || '';
 
@@ -373,7 +350,6 @@ if ($userResult) {
 			query.set('page', page);
 		}
 		query.set('mode', mode);
-		query.set('sort', sort);
 		if (sitePage > 1) {
 			query.set('site_page', sitePage);
 		}
@@ -395,7 +371,6 @@ if ($userResult) {
 				phone: phone,
 				page: page,
 				mode: mode,
-				sort: sort,
 				site_page: sitePage,
 				highlight_id: highlightId
 			},
@@ -421,18 +396,9 @@ if ($userResult) {
 		$('.mode-button[data-mode="' + mode + '"]').addClass('active');
 	}
 
-	function toggleSortControl(mode) {
-		if (mode === 'dates') {
-			$('#sort-control').show();
-		} else {
-			$('#sort-control').hide();
-		}
-	}
-
 	function getControlState() {
 		return {
-			mode: $('.mode-button.active').data('mode') || 'dates',
-			sort: $('#sort-order').val() || 'asc'
+			mode: $('.mode-button.active').data('mode') || 'dates'
 		};
 	}
 
@@ -443,7 +409,6 @@ if ($userResult) {
 			phone: params.get('phone') || '',
 			page: parseInt(params.get('page') || '1', 10),
 			mode: params.get('mode') || 'dates',
-			sort: params.get('sort') || 'asc',
 			sitePage: parseInt(params.get('site_page') || '1', 10),
 			highlightId: params.get('highlight_id') || ''
 		};
@@ -548,12 +513,11 @@ if ($userResult) {
             if (result.success) {
                 // Если успех
                 let params = getUrlState();
-                loadData({
+				loadData({
 					search: params.search,
 					phone: params.phone,
 					page: params.page,
 					mode: params.mode,
-					sort: params.sort,
 					sitePage: params.sitePage
 				}); // Обновляем таблицу
                 
@@ -614,7 +578,6 @@ if ($userResult) {
 						phone: params.phone,
 						page: params.page,
 						mode: params.mode,
-						sort: params.sort,
 						sitePage: params.sitePage
 					});
 					$('#edit-dialog').dialog('close');
@@ -657,7 +620,6 @@ if ($userResult) {
 						phone: params.phone,
 						page: params.page,
 						mode: params.mode,
-						sort: params.sort,
 						sitePage: params.sitePage
 					});
 					$('#import-message').html('<span style="color:green;">' + response.message + '</span>');
@@ -682,6 +644,19 @@ if ($userResult) {
 			<?php if ($isAdmin) { ?>
 				<a href="/managment.php" class="home-button">Управление пользователями</a>
 			<?php } ?>
+			<div class="notification-wrapper">
+				<button type="button" id="notification-button" class="notification-button" title="Уведомления">
+					<span class="notification-icon">🔔</span>
+					<span id="notification-dot" class="notification-dot"></span>
+				</button>
+				<div id="notification-panel" class="notification-panel">
+					<div class="notification-header">
+						<span>Уведомления</span>
+						<button type="button" id="notifications-mark-read" class="notification-mark-read">Отметить прочитанными</button>
+					</div>
+					<div id="notification-list" class="notification-list"></div>
+				</div>
+			</div>
 			<button type="button" class="import-button" id="import-button">Импорт</button>
 			<form class="exit" method="POST" action="logout.php">
 				<input name="submit" type="submit" value="Выйти">
@@ -755,28 +730,6 @@ if ($userResult) {
 		<div class="mode-switch">
 			<button type="button" class="mode-button" data-mode="dates">По датам</button>
 			<button type="button" class="mode-button" data-mode="history">История комментариев</button>
-		</div>
-		<div class="view-controls-right">
-			<div class="sort-control" id="sort-control">
-				<label for="sort-order">Сортировка:</label>
-				<select id="sort-order">
-					<option value="asc">Сначала старые</option>
-					<option value="desc">Сначала новые</option>
-				</select>
-			</div>
-			<div class="notification-wrapper">
-				<button type="button" id="notification-button" class="notification-button" title="Уведомления">
-					<span class="notification-icon">📞</span>
-					<span id="notification-dot" class="notification-dot"></span>
-				</button>
-				<div id="notification-panel" class="notification-panel">
-					<div class="notification-header">
-						<span>Уведомления</span>
-						<button type="button" id="notifications-mark-read" class="notification-mark-read">Отметить прочитанными</button>
-					</div>
-					<div id="notification-list" class="notification-list"></div>
-				</div>
-			</div>
 		</div>
 	</div>
 

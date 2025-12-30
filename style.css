@@ -386,7 +386,7 @@ table {
 table td, 
 table th {
     border: 1px solid var(--line);
-    padding: 10px 12px;
+    padding: 6px 8px;
     vertical-align: middle;
 }
 
@@ -421,12 +421,11 @@ tbody tr:hover {
 }
 
 /* Ширина колонок */
-table .phone { width: 150px; text-align: center; }
-table .site { width: 200px; }
-table .author { width: 140px; text-align: center; }
-table .call { width: 140px; text-align: center; }
+table .phone { width: 130px; text-align: center; }
+table .site { width: 170px; }
+table .call { width: 120px; text-align: center; }
 table .date { color: #4CAF50; }
-table .actions { width: 70px; text-align: center; }
+table .actions { width: 54px; text-align: center; }
 
 .comment-userid {
     font-size: 12px;
@@ -650,6 +649,94 @@ table .actions { width: 70px; text-align: center; }
 
 .comment-text {
     white-space: pre-wrap;
+}
+
+.admin-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.admin-panel-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+}
+
+.admin-panel-card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+}
+
+.admin-panel-card h2 {
+    margin-bottom: 12px;
+    font-size: 18px;
+}
+
+.admin-table-actions button {
+    padding: 6px 12px;
+    font-size: 13px;
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--line);
+}
+
+.admin-table-actions button:hover {
+    background: #f2f2f7;
+    box-shadow: none;
+    transform: none;
+}
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(29, 29, 31, 0.45);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 16px;
+}
+
+.modal-overlay.active {
+    display: flex;
+}
+
+.modal-content {
+    background: #fff;
+    border-radius: 16px;
+    padding: 20px;
+    width: min(520px, 100%);
+    box-shadow: var(--shadow);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.modal-title {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.modal-close {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-size: 20px;
+    padding: 0;
+}
+
+.modal-close:hover {
+    color: var(--text);
+    box-shadow: none;
+    transform: none;
 }
 
 .dialog-message {
