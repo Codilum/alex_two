@@ -13,9 +13,13 @@ function openDbConnection()
     return $conn;
 }
 
-function getUsersTableColumns($conn)
+function getUsersTableColumns($conn, $refresh = false)
 {
     static $columns = null;
+
+    if ($refresh) {
+        $columns = null;
+    }
 
     if ($columns !== null) {
         return $columns;
@@ -96,8 +100,15 @@ function ensureDefaultUsers($conn)
 
 function ensureUsersColumns($conn)
 {
-    pg_query($conn, "ALTER TABLE users ADD COLUMN IF NOT EXISTS useroffice TEXT");
-    pg_query($conn, "ALTER TABLE users ADD COLUMN IF NOT EXISTS userrole VARCHAR(20) DEFAULT 'user'");
+    if (!usersHasColumn($conn, 'useroffice')) {
+        pg_query($conn, "ALTER TABLE users ADD COLUMN useroffice TEXT");
+        getUsersTableColumns($conn, true);
+    }
+
+    if (!usersHasColumn($conn, 'userrole')) {
+        pg_query($conn, "ALTER TABLE users ADD COLUMN userrole VARCHAR(20) DEFAULT 'user'");
+        getUsersTableColumns($conn, true);
+    }
 }
 
 function ensureAssignmentTables($conn)
