@@ -5,6 +5,7 @@ $auth = requireAuth('page');
 $currentUser = $auth['user'];
 $conn = $auth['conn'];
 $isAdmin = isAdmin($currentUser);
+$currentUserRoleLabel = $isAdmin ? 'Администратор' : 'Пользователь';
 $userList = [];
 $userResult = pg_query($conn, 'SELECT userid, userlogin FROM users ORDER BY userlogin');
 if ($userResult) {
@@ -651,6 +652,10 @@ if ($userResult) {
 <div class="container">
 	<div class="top-actions">
 		<a href="/main.php" class="home-button">На главную</a>
+		<div class="current-user">
+			Вы вошли как: <?php echo htmlspecialchars($currentUser['userlogin']); ?>
+			<span class="current-user-role"><?php echo htmlspecialchars($currentUserRoleLabel); ?></span>
+		</div>
 		<div class="top-actions-right">
 			<?php if ($isAdmin) { ?>
 				<a href="/managment.php" class="home-button">Управление пользователями</a>
