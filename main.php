@@ -315,8 +315,10 @@ if ($userResult) {
 			copyToClipboard(link);
 			container.find('.row-actions-status').text('Ссылка скопирована.');
 		});
-		$(document).on('click', function() {
-			$('.row-actions-menu').removeClass('active');
+		$(document).on('click', function(event) {
+			if ($(event.target).closest('.row-actions').length === 0) {
+				$('.row-actions-menu').removeClass('active');
+			}
 		});
 		$('body').on('click', '#notification-button', function(event) {
 			event.stopPropagation();
@@ -490,10 +492,11 @@ if ($userResult) {
 					let assignedAt = item.assigned_at || '';
 					let from = item.assigned_by || 'Неизвестно';
 					let unreadClass = item.read_at ? '' : 'unread';
-					let html = '<div class="notification-item ' + unreadClass + '">' +
+					let link = '/main.php?highlight_id=' + item.call_id;
+					let html = '<a class="notification-item ' + unreadClass + '" href="' + link + '">' +
 						'<div class="notification-title">Назначен звонок - ' + callDate + '</div>' +
 						'<div class="notification-meta">' + assignedAt + ' • от: ' + from + '</div>' +
-						'</div>';
+						'</a>';
 					list.append(html);
 				});
 			}
