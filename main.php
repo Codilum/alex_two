@@ -215,25 +215,32 @@ if ($userResult) {
 			$('#importForm')[0].reset();
 			$('#import-dialog').dialog('open');
 		});
-		$('#edit-dialog').dialog({
-			autoOpen: false,
-			modal: true,
-			width: 520,
-			buttons: [
-				{
-					text: 'Сохранить',
-					id: 'edit-save-button',
-					click: function() {
-						sendEditForm();
-					}
-				},
-				{
-					text: 'Закрыть',
-					click: function() {
-						$(this).dialog('close');
-					}
+		const editModal = document.getElementById('edit-modal');
+		if (editModal) {
+			const closeEditModal = () => {
+				editModal.classList.remove('active');
+				editModal.setAttribute('aria-hidden', 'true');
+			};
+			const openEditModal = () => {
+				editModal.classList.add('active');
+				editModal.setAttribute('aria-hidden', 'false');
+			};
+
+			window.closeEditModal = closeEditModal;
+			window.openEditModal = openEditModal;
+
+			editModal.addEventListener('click', (event) => {
+				if (event.target === editModal) {
+					closeEditModal();
 				}
-			]
+			});
+			editModal.querySelectorAll('[data-modal-close]').forEach((button) => {
+				button.addEventListener('click', closeEditModal);
+			});
+		}
+
+		$('#edit-save-button').on('click', function() {
+			sendEditForm();
 		});
 		$('#import-dialog').dialog({
 			autoOpen: false,
@@ -555,7 +562,9 @@ if ($userResult) {
 			$('#edit-save-button').prop('disabled', false);
 		}
 
-		$('#edit-dialog').dialog('open');
+		if (typeof window.openEditModal === 'function') {
+			window.openEditModal();
+		}
 	}
 
 	function sendEditForm() {
@@ -580,7 +589,9 @@ if ($userResult) {
 						mode: params.mode,
 						sitePage: params.sitePage
 					});
-					$('#edit-dialog').dialog('close');
+					if (typeof window.closeEditModal === 'function') {
+						window.closeEditModal();
+					}
 				} else {
 					$('#edit-message').html('<span style="color:#dc3545;">' + response.message + '</span>');
 				}
@@ -703,12 +714,22 @@ if ($userResult) {
 		<div id="result_form"></div>
 	</div>
 
-	<div id="edit-dialog" title="Редактирование комментария" style="display:none;">
-		<div class="dialog-message" id="edit-message"></div>
-		<form id="editForm">
-			<textarea rows="4" cols="100" name="comment" id="edit-comment" placeholder="Введите новый текст комментария..."></textarea>
-			<input type="hidden" name="edit_id" id="edit_id_dialog">
-		</form>
+	<div id="edit-modal" class="modal-overlay" aria-hidden="true">
+		<div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title">
+			<div class="modal-header">
+				<div class="modal-title" id="edit-modal-title">Редактирование комментария</div>
+				<button type="button" class="modal-close" data-modal-close aria-label="Закрыть">×</button>
+			</div>
+			<div class="dialog-message" id="edit-message"></div>
+			<form id="editForm">
+				<textarea rows="4" cols="100" name="comment" id="edit-comment" placeholder="Введите новый текст комментария..."></textarea>
+				<input type="hidden" name="edit_id" id="edit_id_dialog">
+			</form>
+			<div class="modal-actions">
+				<button type="button" class="modal-secondary" data-modal-close>Закрыть</button>
+				<button type="button" class="modal-primary" id="edit-save-button">Сохранить</button>
+			</div>
+		</div>
 	</div>
 
 	<div id="import-dialog" title="Импорт данных" style="display:none;">

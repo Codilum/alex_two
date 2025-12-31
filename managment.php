@@ -239,12 +239,10 @@ $assignments = pg_query(
                             <?php if ($hasOffice) { ?>
                                 <input name="office" type="text" placeholder="Офис">
                             <?php } ?>
-                            <?php if ($hasRole) { ?>
-                                <select name="role">
-                                    <option value="user">Пользователь</option>
-                                    <option value="admin">Администратор</option>
-                                </select>
-                            <?php } ?>
+                            <select name="role" <?php echo $hasRole ? '' : 'disabled'; ?>>
+                                <option value="user">Пользователь</option>
+                                <option value="admin">Администратор</option>
+                            </select>
                             <input type="submit" value="Добавить">
                         </form>
                     </div>
@@ -310,12 +308,10 @@ $assignments = pg_query(
                     <?php if ($hasOffice) { ?>
                         <input name="office" type="text" placeholder="Офис">
                     <?php } ?>
-                    <?php if ($hasRole) { ?>
-                        <select name="role">
-                            <option value="user">Пользователь</option>
-                            <option value="admin">Администратор</option>
-                        </select>
-                    <?php } ?>
+                    <select name="role" <?php echo $hasRole ? '' : 'disabled'; ?>>
+                        <option value="user">Пользователь</option>
+                        <option value="admin">Администратор</option>
+                    </select>
                     <input type="submit" value="Сохранить">
                 </form>
             </div>
