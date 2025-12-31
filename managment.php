@@ -166,22 +166,6 @@ if ($hasRole) {
     $listFields[] = 'userrole';
 }
 $users = pg_query($conn, 'SELECT ' . implode(', ', $listFields) . ' FROM users ORDER BY userlogin');
-$assignments = pg_query(
-    $conn,
-    "SELECT ca.id,
-            ca.call_id,
-            ca.assigned_at,
-            ca.read_at,
-            calls.sitedomen,
-            calls.phonenumber,
-            from_user.userlogin AS from_user,
-            to_user.userlogin AS to_user
-     FROM call_assignments ca
-     LEFT JOIN calls ON calls.id = ca.call_id
-     LEFT JOIN users from_user ON from_user.userid = ca.assigned_by
-     LEFT JOIN users to_user ON to_user.userid = ca.assigned_to
-     ORDER BY ca.assigned_at DESC"
-);
 ?>
 <!DOCTYPE html>
 <html>
@@ -280,6 +264,7 @@ $assignments = pg_query(
     <div class="container admin-page">
         <div class="top-actions">
             <a href="/main.php" class="home-button">На главную</a>
+            <a href="/transfer_records.php" class="home-button">Передача записей</a>
             <div class="current-user">
                 Вы вошли как: <?php echo htmlspecialchars($currentUser['userlogin']); ?>
                 <span class="current-user-role"><?php echo htmlspecialchars($currentUserRoleLabel); ?></span>
@@ -413,37 +398,6 @@ $assignments = pg_query(
             </div>
         </div>
 
-        <div class="data-block">
-            <h2>Передача записей</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <td>ID записи</td>
-                        <td>Телефон</td>
-                        <td>Сайт</td>
-                        <td>Кому передано</td>
-                        <td>От кого</td>
-                        <td>Дата передачи</td>
-                        <td>Статус</td>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if ($assignments) { ?>
-                        <?php while ($assignment = pg_fetch_assoc($assignments)) { ?>
-                            <tr>
-                                <td><?php echo (int)$assignment['call_id']; ?></td>
-                                <td><?php echo htmlspecialchars($assignment['phonenumber'] ?? ''); ?></td>
-                                <td><?php echo htmlspecialchars($assignment['sitedomen'] ?? ''); ?></td>
-                                <td><?php echo htmlspecialchars($assignment['to_user'] ?? ''); ?></td>
-                                <td><?php echo htmlspecialchars($assignment['from_user'] ?? ''); ?></td>
-                                <td><?php echo $assignment['assigned_at'] ? htmlspecialchars(date('d.m.Y H:i', strtotime($assignment['assigned_at']))) : ''; ?></td>
-                                <td><?php echo $assignment['read_at'] ? 'Прочитано' : 'Не прочитано'; ?></td>
-                            </tr>
-                        <?php } ?>
-                    <?php } ?>
-                </tbody>
-            </table>
-        </div>
     </div>
 </body>
 </html>
