@@ -8,11 +8,11 @@ $currentUserRoleLabel = isAdmin($currentUser) ? 'Администратор' : '
 $hasOffice = usersHasColumn($conn, 'useroffice');
 $hasRole = usersHasColumn($conn, 'userrole');
 
-if (!isAdmin($currentUser)) {
-    http_response_code(403);
-    echo '<div class="container"><div class="forms">Доступ запрещен.</div></div>';
-    exit();
-}
+// if (!isAdmin($currentUser)) {
+//     http_response_code(403);
+//     echo '<div class="container"><div class="forms">Доступ запрещен.</div></div>';
+//     exit();
+// }
 
 $message = '';
 $error = '';

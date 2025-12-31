@@ -991,3 +991,10 @@ table .actions { width: 54px; text-align: center; }
         margin-top: 8px;
     }
 }
+
+.first-row{
+    margin-bottom: 15px;
+}
+.ui-datepicker table{
+    min-width: unset !important;
+}
