@@ -63,6 +63,8 @@ function isPasswordUnique($conn, $passwordHash, $excludeUserId = null)
 
 function ensureDefaultUsers($conn)
 {
+    ensureUsersColumns($conn);
+
     $result = pg_query_params($conn, "SELECT userid FROM users WHERE userlogin = $1 LIMIT 1", ['test']);
     if ($result && pg_num_rows($result) === 0) {
         $passwordHash = md5(md5('123'));
@@ -90,6 +92,12 @@ function ensureDefaultUsers($conn)
             $params
         );
     }
+}
+
+function ensureUsersColumns($conn)
+{
+    pg_query($conn, "ALTER TABLE users ADD COLUMN IF NOT EXISTS useroffice TEXT");
+    pg_query($conn, "ALTER TABLE users ADD COLUMN IF NOT EXISTS userrole VARCHAR(20) DEFAULT 'user'");
 }
 
 function ensureAssignmentTables($conn)
@@ -180,6 +188,7 @@ function getAuthenticatedUser($conn)
 function requireAuth($mode = 'redirect')
 {
     $conn = openDbConnection();
+    ensureUsersColumns($conn);
     ensureAssignmentTables($conn);
     $user = getAuthenticatedUser($conn);
 

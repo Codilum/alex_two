@@ -4,6 +4,7 @@ require_once 'auth_utils.php';
 $auth = requireAuth('page');
 $currentUser = $auth['user'];
 $conn = $auth['conn'];
+$currentUserRoleLabel = isAdmin($currentUser) ? 'Администратор' : 'Пользователь';
 $hasOffice = usersHasColumn($conn, 'useroffice');
 $hasRole = usersHasColumn($conn, 'userrole');
 
@@ -32,6 +33,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'create') {
         if ($login === '' || $password === '') {
             $error = 'Заполните имя пользователя и пароль.';
+        } elseif ($hasOffice && $office === '') {
+            $error = 'Заполните офис.';
         } elseif (!isPasswordUnique($conn, md5(md5($password)))) {
             $error = 'Этот пароль уже используется другим пользователем.';
         } else {
@@ -72,6 +75,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $userId = (int)($_POST['user_id'] ?? 0);
         if ($userId <= 0 || $login === '') {
             $error = 'Заполните имя пользователя.';
+        } elseif ($hasOffice && $office === '') {
+            $error = 'Заполните офис.';
         } else {
             if ($password !== '' && !isPasswordUnique($conn, md5(md5($password)), $userId)) {
                 $error = 'Этот пароль уже используется другим пользователем.';
@@ -116,6 +121,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $message = 'Данные пользователя обновлены.';
             } else {
                 $error = 'Не удалось обновить пользователя.';
+            }
+        }
+    }
+
+    if ($action === 'delete') {
+        $userId = (int)($_POST['user_id'] ?? 0);
+        if ($userId <= 0) {
+            $error = 'Не выбран пользователь для удаления.';
+        } else {
+            pg_query($conn, 'BEGIN');
+            $deleteAssignments = pg_query_params(
+                $conn,
+                'DELETE FROM call_assignments WHERE assigned_to = $1 OR assigned_by = $1',
+                [$userId]
+            );
+            $deleteCalls = pg_query_params(
+                $conn,
+                'DELETE FROM calls WHERE userid = $1',
+                [$userId]
+            );
+            $deleteUser = pg_query_params(
+                $conn,
+                'DELETE FROM users WHERE userid = $1',
+                [$userId]
+            );
+
+            if ($deleteAssignments && $deleteCalls && $deleteUser) {
+                pg_query($conn, 'COMMIT');
+                $message = 'Пользователь и все связанные данные удалены.';
+            } else {
+                pg_query($conn, 'ROLLBACK');
+                $error = 'Не удалось удалить пользователя.';
             }
         }
     }
@@ -166,6 +203,8 @@ $assignments = pg_query(
             const officeInput = form.querySelector('[name="office"]');
             const roleSelect = form.querySelector('[name="role"]');
             const userIdInput = form.querySelector('[name="user_id"]');
+            const deleteModal = document.getElementById('delete-modal');
+            const deleteUserIdInput = deleteModal ? deleteModal.querySelector('[name="user_id"]') : null;
 
             const closeModal = () => {
                 modal.classList.remove('active');
@@ -204,13 +243,47 @@ $assignments = pg_query(
             modal.querySelectorAll('[data-modal-close]').forEach((button) => {
                 button.addEventListener('click', closeModal);
             });
+
+            const closeDeleteModal = () => {
+                if (deleteModal) {
+                    deleteModal.classList.remove('active');
+                }
+            };
+
+            document.querySelectorAll('.delete-user-button').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const userId = button.dataset.userId || '';
+                    if (deleteUserIdInput) {
+                        deleteUserIdInput.value = userId;
+                    }
+                    if (deleteModal) {
+                        deleteModal.classList.add('active');
+                    }
+                });
+            });
+
+            if (deleteModal) {
+                deleteModal.addEventListener('click', (event) => {
+                    if (event.target === deleteModal) {
+                        closeDeleteModal();
+                    }
+                });
+
+                deleteModal.querySelectorAll('[data-modal-close]').forEach((button) => {
+                    button.addEventListener('click', closeDeleteModal);
+                });
+            }
         });
     </script>
 </head>
 <body>
-    <div class="container">
+    <div class="container admin-page">
         <div class="top-actions">
             <a href="/main.php" class="home-button">На главную</a>
+            <div class="current-user">
+                Вы вошли как: <?php echo htmlspecialchars($currentUser['userlogin']); ?>
+                <span class="current-user-role"><?php echo htmlspecialchars($currentUserRoleLabel); ?></span>
+            </div>
             <div class="top-actions-right">
                 <form class="exit" method="POST" action="logout.php">
                     <input name="submit" type="submit" value="Выйти">
@@ -228,25 +301,21 @@ $assignments = pg_query(
                 <div class="dialog-message" style="color: var(--danger);"><?php echo htmlspecialchars($error); ?></div>
             <?php } ?>
 
-            <div class="admin-sections">
-                <div class="admin-panel-grid">
-                    <div class="admin-panel-card">
-                        <h2>Создать аккаунт</h2>
-                        <form method="post" class="management-form">
-                            <input type="hidden" name="action" value="create">
-                            <input name="login" type="text" placeholder="Имя пользователя" required>
-                            <input name="password" type="password" placeholder="Пароль" required>
-                            <?php if ($hasOffice) { ?>
-                                <input name="office" type="text" placeholder="Офис">
-                            <?php } ?>
-                            <select name="role" <?php echo $hasRole ? '' : 'disabled'; ?>>
-                                <option value="user">Пользователь</option>
-                                <option value="admin">Администратор</option>
-                            </select>
-                            <input type="submit" value="Добавить">
-                        </form>
-                    </div>
-                </div>
+            <div class="admin-panel">
+                <h2>Создать аккаунт</h2>
+                <form method="post" class="management-form">
+                    <input type="hidden" name="action" value="create">
+                    <input name="login" type="text" placeholder="Имя пользователя" required>
+                    <input name="password" type="password" placeholder="Пароль" required>
+                    <?php if ($hasOffice) { ?>
+                        <input name="office" type="text" placeholder="Офис" required>
+                    <?php } ?>
+                    <select name="role" <?php echo $hasRole ? '' : 'disabled'; ?>>
+                        <option value="user">Пользователь</option>
+                        <option value="admin">Администратор</option>
+                    </select>
+                    <input type="submit" value="Добавить">
+                </form>
             </div>
         </div>
 
@@ -286,6 +355,13 @@ $assignments = pg_query(
                                     >
                                         Редактировать
                                     </button>
+                                    <button
+                                        type="button"
+                                        class="delete-user-button"
+                                        data-user-id="<?php echo (int)$user['userid']; ?>"
+                                    >
+                                        Удалить
+                                    </button>
                                 </td>
                             </tr>
                         <?php } ?>
@@ -306,13 +382,33 @@ $assignments = pg_query(
                     <input name="login" type="text" placeholder="Имя пользователя" required>
                     <input name="password" type="password" placeholder="Новый пароль (необязательно)">
                     <?php if ($hasOffice) { ?>
-                        <input name="office" type="text" placeholder="Офис">
+                        <input name="office" type="text" placeholder="Офис" required>
                     <?php } ?>
                     <select name="role" <?php echo $hasRole ? '' : 'disabled'; ?>>
                         <option value="user">Пользователь</option>
                         <option value="admin">Администратор</option>
                     </select>
                     <input type="submit" value="Сохранить">
+                </form>
+            </div>
+        </div>
+
+        <div id="delete-modal" class="modal-overlay" aria-hidden="true">
+            <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
+                <div class="modal-header">
+                    <div class="modal-title" id="delete-modal-title">Удаление пользователя</div>
+                    <button type="button" class="modal-close" data-modal-close aria-label="Закрыть">×</button>
+                </div>
+                <div class="dialog-message">
+                    Вы уверены, что хотите удалить аккаунт? Все данные об этом аккаунте будут удалены без возможности восстановления.
+                </div>
+                <form method="post" class="management-form">
+                    <input type="hidden" name="action" value="delete">
+                    <input type="hidden" name="user_id" value="">
+                    <div class="modal-actions">
+                        <button type="button" class="modal-secondary" data-modal-close>Отмена</button>
+                        <button type="submit" class="modal-danger">Удалить аккаунт</button>
+                    </div>
                 </form>
             </div>
         </div>

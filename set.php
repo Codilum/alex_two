@@ -10,6 +10,8 @@ if (!$conn) {
     die("Connection failed: " . pg_last_error());
 }
 
+ensureUsersColumns($conn);
+
 if(isset($_POST['submit']))
 {
     $login = "admin2";

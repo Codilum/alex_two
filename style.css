@@ -60,11 +60,33 @@ h1 {
     box-shadow: var(--shadow);
 }
 
+.admin-page .forms {
+    box-shadow: none;
+}
+
 .top-actions {
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 16px;
+}
+
+.current-user {
+    font-size: 13px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.current-user-role {
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    font-size: 12px;
+    color: var(--text);
+    background: #fff;
 }
 
 .top-actions-right {
@@ -107,12 +129,20 @@ textarea {
     gap: 10px;
 }
 
+.management-form input[type="text"],
+.management-form input[type="password"],
+.management-form input[type="tel"],
 .management-form select {
     padding: 10px 12px;
     border: 1px solid var(--line);
     border-radius: 12px;
     background: #fff;
     font-size: 14px;
+    color: var(--text);
+}
+
+.management-form select {
+    appearance: none;
 }
 
 .input-column input[type="text"]:focus,
@@ -651,27 +681,14 @@ table .actions { width: 54px; text-align: center; }
     white-space: pre-wrap;
 }
 
-.admin-sections {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-
-.admin-panel-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 16px;
-}
-
-.admin-panel-card {
+.admin-panel {
     background: #fff;
     border: 1px solid var(--line);
     border-radius: 14px;
     padding: 16px;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
 }
 
-.admin-panel-card h2 {
+.admin-panel h2 {
     margin-bottom: 12px;
     font-size: 18px;
 }
@@ -684,12 +701,37 @@ table .actions { width: 54px; text-align: center; }
     border: 1px solid var(--line);
 }
 
+.admin-table-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
 .admin-table-actions button:hover {
     background: #f2f2f7;
     box-shadow: none;
     transform: none;
 }
 
+.admin-page .modal-content {
+    box-shadow: none;
+}
+
+.admin-page .management-form input:focus,
+.admin-page .management-form select:focus {
+    outline: none;
+    border-color: rgba(var(--accent-rgb), 0.6);
+    box-shadow: none;
+}
+
+.modal-danger {
+    background: var(--danger);
+    color: #fff;
+}
+
+.modal-danger:hover {
+    background: #b91c1c;
+}
 .modal-overlay {
     position: fixed;
     inset: 0;
