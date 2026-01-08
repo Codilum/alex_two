@@ -136,6 +136,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'DELETE FROM call_assignments WHERE assigned_to = $1 OR assigned_by = $1',
                 [$userId]
             );
+            $deleteNotificationsByCall = pg_query_params(
+                $conn,
+                'DELETE FROM notifications WHERE related_call_id IN (SELECT id FROM calls WHERE userid = $1)',
+                [$userId]
+            );
+            $deleteNotificationsByUser = pg_query_params(
+                $conn,
+                'DELETE FROM notifications WHERE user_id = $1',
+                [$userId]
+            );
             $deleteCalls = pg_query_params(
                 $conn,
                 'DELETE FROM calls WHERE userid = $1',
@@ -147,7 +157,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 [$userId]
             );
 
-            if ($deleteAssignments && $deleteCalls && $deleteUser) {
+            if ($deleteAssignments && $deleteNotificationsByCall && $deleteNotificationsByUser && $deleteCalls && $deleteUser) {
                 pg_query($conn, 'COMMIT');
                 $message = 'Пользователь и все связанные данные удалены.';
             } else {

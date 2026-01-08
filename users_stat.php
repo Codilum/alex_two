@@ -79,32 +79,6 @@ $result = pg_query_params($conn, $sql, [$today, $weekAgoDay]);
         pg_close($conn);
         ?>
 
-        <?php if ($isAdmin) : ?>
-            <div class="newUser">
-                <form method="post" id="sendForm" action="">
-                    <div class="row first-row">
-                        <div class="input-column">
-                            <div class="find-row">
-                                <input name="login" placeholder="Логин" type="text" id="login">
-                            </div>
-                        </div>
-                        <div class="input-column">
-                            <div class="find-row">
-                                <input name="office" placeholder="Офис" type="text" id="office">
-                            </div>
-                        </div>
-                        <div class="input-column">
-                            <div class="find-row">
-                                <input name="password" placeholder="Пароль" type="password" id="password">
-                            </div>
-                        </div>
-                        <div class="input-column save-button">
-                            <input type="submit" value="Создать" id="btn">
-                        </div>
-                    </div>
-                </form>
-            </div>
-        <?php endif; ?>
     </div>
 </body>
 </html>
